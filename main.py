@@ -1,7 +1,8 @@
+
 import sys
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QGridLayout, QLabel,
-    QPushButton, QPlainTextEdit, QComboBox, QFileDialog, QMessageBox
+    QPushButton, QPlainTextEdit, QComboBox, QFileDialog, QMessageBox, QCheckBox
 )
 from PySide6.QtGui import QPixmap, QImage, QKeyEvent
 from PySide6.QtCore import Qt
@@ -21,7 +22,7 @@ class ImageTextEditorApp(QMainWindow):
         super().__init__()
 
         self.loaded_image = None
-        self.font_path = "fonts/NotoNaskhArabic-Regular.ttf"  # Placeholder for Arabic font
+        self.font_path = "arial.ttf"
 
         self.setWindowTitle("Image Text Editor")
         self.resize(800, 600)
@@ -37,6 +38,9 @@ class ImageTextEditorApp(QMainWindow):
         self.load_image_button = QPushButton("Load Image")
         self.load_image_button.clicked.connect(self.load_image)
         grid_layout.addWidget(self.load_image_button, 1, 0)
+
+        self.fit_to_width_checkbox = QCheckBox("Fit Text to Image Width")
+        grid_layout.addWidget(self.fit_to_width_checkbox, 1, 1)
 
         self.text_position_combo = QComboBox()
         self.text_position_combo.addItems([
@@ -113,61 +117,66 @@ class ImageTextEditorApp(QMainWindow):
         else:  # Transparent
             base_image = Image.new("RGBA", (800, 600), (255, 255, 255, 0))
 
-        self.add_text_to_image(base_image, text_to_draw)
+        generated_image = self.add_text_to_image(base_image, text_to_draw)
+        if generated_image:
+            self.update_preview(generated_image)
+            self.save_image(generated_image)
 
     def add_text_to_image(self, image, text):
         draw = ImageDraw.Draw(image)
         text_color = self.text_color_combo.currentText()
         position = self.text_position_combo.currentText()
+        margin = 20
+
+        font_size = int(image.height / 2.5)
+
+        if self.fit_to_width_checkbox.isChecked():
+            font_size = 1
+            font = ImageFont.truetype(self.font_path, font_size)
+            while font.getbbox(text)[2] < image.width - (margin * 2):
+                font_size += 1
+                font = ImageFont.truetype(self.font_path, font_size)
+            font_size -= 1
 
         try:
-            font_size = int(image.height / 10) 
             font = ImageFont.truetype(self.font_path, font_size)
         except IOError:
             QMessageBox.warning(self, "Font Error", f"Font not found at {self.font_path}. Using default font.")
-            font_size = int(image.height / 10)
             font = ImageFont.load_default()
 
         text_bbox = draw.textbbox((0, 0), text, font=font)
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
 
-        x, y = self.calculate_text_position(image.size, (text_width, text_height), position)
+        x, y = self.calculate_text_position(image.size, (text_width, text_height), position, margin)
         
-        draw.text((x, y), text, font=font, fill=text_color, align="center")
+        stroke_color = "black" if text_color != "black" else "white"
+        stroke_width = 2
+        draw.text((x, y), text, font=font, fill=text_color, stroke_width=stroke_width, stroke_fill=stroke_color, align="center")
 
-        self.update_preview(image)
-        self.save_image(image)
+        return image
 
-    def calculate_text_position(self, image_size, text_size, position):
+    def calculate_text_position(self, image_size, text_size, position, margin):
         img_width, img_height = image_size
         text_width, text_height = text_size
-        margin = 10
 
-        # Horizontal alignment
         if "Left" in position:
             x = margin
-        elif "Center" in position or "Middle" in position and "Left" not in position and "Right" not in position:
-            x = (img_width - text_width) / 2
         elif "Right" in position:
             x = img_width - text_width - margin
-        else: # Default to center
+        else: 
             x = (img_width - text_width) / 2
 
-        # Vertical alignment
         if "Top" in position:
             y = margin
-        elif "Middle" in position or "Center" in position:
-            y = (img_height - text_height) / 2
         elif "Bottom" in position:
             y = img_height - text_height - margin
-        else: # Default to center
+        else: 
             y = (img_height - text_height) / 2
             
         return int(x), int(y)
 
     def update_preview(self, image):
-        # Convert PIL Image to QPixmap for display
         qimage = self.pil_to_qimage(image)
         pixmap = QPixmap.fromImage(qimage)
         self.image_preview.setPixmap(pixmap.scaled(
@@ -178,13 +187,8 @@ class ImageTextEditorApp(QMainWindow):
 
     def pil_to_qimage(self, pil_img):
         if pil_img.mode == "RGB":
-            r, g, b = pil_img.split()
-            pil_img = Image.merge("RGB", (b, g, r))
-        elif pil_img.mode == "RGBA":
-            r, g, b, a = pil_img.split()
-            pil_img = Image.merge("RGBA", (b, g, r, a))
+            pil_img = pil_img.convert("RGBA")
 
-        # Convert to QImage
         img_byte_array = io.BytesIO()
         pil_img.save(img_byte_array, format="PNG")
         qimage = QImage()
@@ -192,10 +196,17 @@ class ImageTextEditorApp(QMainWindow):
         return qimage
 
     def save_image(self, image):
-        save_path, _ = QFileDialog.getSaveFileName(self, "Save Image", "generated_image.png", "PNG Image (*.png);;JPEG Image (*.jpg)")
+        save_path, selected_filter = QFileDialog.getSaveFileName(self, "Save Image", "generated_image.png", "PNG Image (*.png);;JPEG Image (*.jpg)")
         if save_path:
             try:
-                image.save(save_path)
+                file_format = "PNG"
+                if "*.jpg" in selected_filter:
+                    file_format = "JPEG"
+                
+                if file_format == "JPEG":
+                    image = image.convert("RGB")
+
+                image.save(save_path, format=file_format)
                 QMessageBox.information(self, "Success", f"Image saved to {save_path}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Could not save image: {e}")
