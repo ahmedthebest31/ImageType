@@ -1,0 +1,47 @@
+We have made significant progress on the PySide6 GUI and core image processing. Now, we need to refine the text rendering, introduce more text styling options, and provide more control over image dimensions and export quality.
+
+**Key Requirements for Text Styling, Image Dimensions, and Export Control:**
+
+1.  **Full-Width Text Filling (Crucial Enhancement):**
+    * Implement logic to ensure the text, when drawn on the image, effectively **fills the width / height of the image** (or a significant portion thereof), similar to how text is presented in social media posts with a solid background.
+    * This likely involves:
+        * **Text Wrapping:** Automatically wrapping long lines of text to fit within the image width.
+        * **Dynamic Font Sizing (Refinement):** Adjusting the font size dynamically so that the wrapped text occupies a visually appealing width without being too small or too large. The text should fit within safe margins from the image edges.
+        * **Justification:** Consider adding an option for text justification (e.g., center, left, right) if it helps with the "full-width" appearance.
+    * This functionality should be tied to a clear option (e.g., a checkbox or implied by a background type).
+
+2.  **Text Formatting Options:**
+    * Add new ****  add another list to  the UI for:
+        * **normal or Bold Text:** To make the text appear bold.
+            * **Accessibility Name:** "Bold Text"
+        * **Italic Text:** To make the text appear italic.
+            * **Accessibility Name:** "Italic Text"
+    * Implement the Pillow drawing logic to apply these styles to the text.
+
+3.  **Image Dimension Control:**
+    * Introduce a **"Image Aspect Ratio/Dimension" dropdown (QComboBox)** to allow the user to choose the output image's aspect ratio or fixed dimensions.
+        * **Accessibility Name:** "Image Dimensions"
+        * **Options:**
+            * "Standard (e.g., 1200x675 / 16:9 for general use)"
+            * "Square (e.g., 1080x1080 / 1:1 for Instagram)"
+            * "Portrait/Shorts (e.g., 1080x1920 / 9:16 for YouTube Shorts/Reels)"
+    * When creating a new image (for transparent or solid color backgrounds), use these chosen dimensions. If an existing image is loaded, it should either be resized/cropped to these dimensions or the text should be optimized to fit within them.
+
+4.  **Enhanced Export Options (Refinement):**
+    * **Image Quality Slider/Dropdown:** Implement a more granular control for image quality when saving (e.g., a `QSlider` for JPG quality or a `QComboBox` with "High", "Medium", "Low" options).
+        * **Accessibility Name:** "Image Quality"
+    * **"Copy to Clipboard" Button:** Re-confirm inclusion of this button and ensure it works correctly with the final generated image.
+        * **Accessibility Name:** "Copy Image to Clipboard"
+
+**Code Structure and Best Practices:**
+
+* Integrate these new functionalities seamlessly into the existing `ImageTextEditorApp` class.
+* Prioritize Accessibility: Ensure all new UI elements have appropriate `setAccessibleName()` values and maintain a logical tab order.
+* The text wrapping and dynamic sizing logic will be critical and should be well-commented.
+* Handle potential errors gracefully (e.g., if text wrapping fails to produce a good result).
+
+**Expected Output:**
+
+* **Updated Python code** for the `ImageTextEditorApp` class, with particular focus on the enhanced text rendering for full-width filling, new text formatting options (bold/italic), image dimension control, and refined export quality options.
+* **Detailed explanations** of the new logic, especially concerning text wrapping and dynamic sizing for "full-width" appearance.
+* **Instructions** on how to test and verify these new features.
