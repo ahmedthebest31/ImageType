@@ -1,3 +1,4 @@
+
 import sys
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QGridLayout, QLabel,
@@ -26,8 +27,8 @@ class ImageTextEditorApp(QMainWindow):
         self.loaded_image = None
         self.generated_image = None
         self.font_path = "arial.ttf"
-        self.font_path_bold = "arialbd.ttf" # Bold font
-        self.font_path_italic = "ariali.ttf" # Italic font
+        self.font_path_bold = "arialbd.ttf"
+        self.font_path_italic = "ariali.ttf"
 
         self.setWindowTitle("Image Text Editor")
         self.resize(1000, 700)
@@ -143,11 +144,11 @@ class ImageTextEditorApp(QMainWindow):
             return (1080, 1920)
         return (1200, 675) # Default
 
-    def generate_and_save_image(self):
+    def create_image(self):
         text_to_draw = self.text_input.toPlainText()
         if not text_to_draw:
             QMessageBox.warning(self, "Warning", "Please enter some text.")
-            return
+            return None
 
         background_type = self.background_type_combo.currentText()
         img_dims = self.get_image_dimensions()
@@ -158,17 +159,29 @@ class ImageTextEditorApp(QMainWindow):
                 base_image = self.loaded_image.copy().resize(img_dims).convert("RGBA")
             else:
                 QMessageBox.warning(self, "Warning", "Please load an image first.")
-                return
+                return None
         elif background_type == "Solid Color":
             bg_color = self.background_color_combo.currentText()
             base_image = Image.new("RGB", img_dims, color=bg_color)
         else:  # Transparent
             base_image = Image.new("RGBA", img_dims, (255, 255, 255, 0))
 
-        self.generated_image = self.add_text_to_image(base_image, text_to_draw)
+        return self.add_text_to_image(base_image, text_to_draw)
+
+    def generate_and_save_image(self):
+        self.generated_image = self.create_image()
         if self.generated_image:
             self.update_preview(self.generated_image)
             self.save_image(self.generated_image)
+
+    def copy_image_to_clipboard(self):
+        self.generated_image = self.create_image()
+        if self.generated_image:
+            self.update_preview(self.generated_image)
+            qimage = self.pil_to_qimage(self.generated_image)
+            clipboard = QGuiApplication.clipboard()
+            clipboard.setImage(qimage)
+            QMessageBox.information(self, "Success", "Image copied to clipboard.")
 
     def add_text_to_image(self, image, text):
         draw = ImageDraw.Draw(image)
@@ -218,7 +231,7 @@ class ImageTextEditorApp(QMainWindow):
         
         while True:
             avg_char_width = sum(font.getbbox(c)[2] for c in "abcdefghijklmnopqrstuvwxyz") / 26
-            if avg_char_width == 0: # Avoid division by zero for empty or non-latin text
+            if avg_char_width == 0: 
                 avg_char_width = font_size
             max_chars_per_line = int((img_width - 2 * margin) / avg_char_width)
             wrapped_text = textwrap.fill(text, width=max_chars_per_line)
@@ -309,15 +322,6 @@ class ImageTextEditorApp(QMainWindow):
                 QMessageBox.information(self, "Success", f"Image saved to {save_path}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Could not save image: {e}")
-
-    def copy_image_to_clipboard(self):
-        if self.generated_image:
-            qimage = self.pil_to_qimage(self.generated_image)
-            clipboard = QGuiApplication.clipboard()
-            clipboard.setImage(qimage)
-            QMessageBox.information(self, "Success", "Image copied to clipboard.")
-        else:
-            QMessageBox.warning(self, "Warning", "Please generate an image first.")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
