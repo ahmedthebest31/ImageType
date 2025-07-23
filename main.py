@@ -1,4 +1,3 @@
-
 import sys
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QGridLayout, QLabel,
@@ -8,6 +7,8 @@ from PySide6.QtGui import QPixmap, QImage, QKeyEvent
 from PySide6.QtCore import Qt
 from PIL import Image, ImageDraw, ImageFont
 import io
+import arabic_reshaper
+from bidi.algorithm import get_display
 
 class AccessiblePlainTextEdit(QPlainTextEdit):
     def keyPressEvent(self, event: QKeyEvent):
@@ -128,12 +129,16 @@ class ImageTextEditorApp(QMainWindow):
         position = self.text_position_combo.currentText()
         margin = 20
 
+        # Reshape and reorder Arabic text
+        reshaped_text = arabic_reshaper.reshape(text)
+        bidi_text = get_display(reshaped_text)
+
         font_size = int(image.height / 2.5)
 
         if self.fit_to_width_checkbox.isChecked():
             font_size = 1
             font = ImageFont.truetype(self.font_path, font_size)
-            while font.getbbox(text)[2] < image.width - (margin * 2):
+            while font.getbbox(bidi_text)[2] < image.width - (margin * 2):
                 font_size += 1
                 font = ImageFont.truetype(self.font_path, font_size)
             font_size -= 1
@@ -144,7 +149,7 @@ class ImageTextEditorApp(QMainWindow):
             QMessageBox.warning(self, "Font Error", f"Font not found at {self.font_path}. Using default font.")
             font = ImageFont.load_default()
 
-        text_bbox = draw.textbbox((0, 0), text, font=font)
+        text_bbox = draw.textbbox((0, 0), bidi_text, font=font)
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
 
@@ -152,7 +157,7 @@ class ImageTextEditorApp(QMainWindow):
         
         stroke_color = "black" if text_color != "black" else "white"
         stroke_width = 2
-        draw.text((x, y), text, font=font, fill=text_color, stroke_width=stroke_width, stroke_fill=stroke_color, align="center")
+        draw.text((x, y), bidi_text, font=font, fill=text_color, stroke_width=stroke_width, stroke_fill=stroke_color, align="center")
 
         return image
 
@@ -200,7 +205,7 @@ class ImageTextEditorApp(QMainWindow):
         if save_path:
             try:
                 file_format = "PNG"
-                if "*.jpg" in selected_filter:
+                if "jpg" in selected_filter.lower():
                     file_format = "JPEG"
                 
                 if file_format == "JPEG":
