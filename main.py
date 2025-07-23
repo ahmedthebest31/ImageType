@@ -1,4 +1,3 @@
-
 import sys
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QGridLayout, QLabel,
@@ -10,7 +9,6 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 import arabic_reshaper
 from bidi.algorithm import get_display
-import textwrap
 
 class AccessiblePlainTextEdit(QPlainTextEdit):
     def keyPressEvent(self, event: QKeyEvent):
@@ -111,7 +109,7 @@ class ImageTextEditorApp(QMainWindow):
         grid_layout.setColumnStretch(1, 1)
         grid_layout.setColumnStretch(2, 2)
 
-        self.toggle_position_combo() # Set initial state
+        self.toggle_position_combo()
 
     def toggle_position_combo(self):
         is_checked = self.fit_to_width_checkbox.isChecked()
@@ -142,7 +140,7 @@ class ImageTextEditorApp(QMainWindow):
             return (1080, 1080)
         elif "1080x1920" in dim_text:
             return (1080, 1920)
-        return (1200, 675) # Default
+        return (1200, 675)
 
     def create_image(self):
         text_to_draw = self.text_input.toPlainText()
@@ -163,7 +161,7 @@ class ImageTextEditorApp(QMainWindow):
         elif background_type == "Solid Color":
             bg_color = self.background_color_combo.currentText()
             base_image = Image.new("RGB", img_dims, color=bg_color)
-        else:  # Transparent
+        else:
             base_image = Image.new("RGBA", img_dims, (255, 255, 255, 0))
 
         return self.add_text_to_image(base_image, text_to_draw)
@@ -184,14 +182,9 @@ class ImageTextEditorApp(QMainWindow):
             QMessageBox.information(self, "Success", "Image copied to clipboard.")
 
     def add_text_to_image(self, image, text):
-        draw = ImageDraw.Draw(image)
         text_color = self.text_color_combo.currentText()
         text_style = self.text_style_combo.currentText()
-        margin = 20
-
-        reshaped_text = arabic_reshaper.reshape(text)
-        bidi_text = get_display(reshaped_text)
-
+        
         font_path = self.font_path
         if text_style == "Bold":
             font_path = self.font_path_bold
@@ -199,63 +192,86 @@ class ImageTextEditorApp(QMainWindow):
             font_path = self.font_path_italic
 
         if self.fit_to_width_checkbox.isChecked():
-            self.draw_text_with_wrapping(image, bidi_text, text_color, font_path)
+            self.draw_text_full_width(image, text, text_color, font_path)
         else:
             position = self.text_position_combo.currentText()
-            font_size = int(image.height / 5)
-            try:
-                font = ImageFont.truetype(font_path, font_size)
-            except IOError:
-                QMessageBox.warning(self, "Font Error", f"Font not found at {font_path}. Using default font.")
-                font = ImageFont.load_default()
-
-            text_bbox = draw.textbbox((0, 0), bidi_text, font=font)
-            text_width = text_bbox[2] - text_bbox[0]
-            text_height = text_bbox[3] - text_bbox[1]
-
-            x, y = self.calculate_text_position(image.size, (text_width, text_height), position, margin)
-            
-            stroke_color = "black" if text_color != "black" else "white"
-            stroke_width = 2
-            draw.text((x, y), bidi_text, font=font, fill=text_color, stroke_width=stroke_width, stroke_fill=stroke_color, align="center")
+            self.draw_text_at_position(image, text, text_color, font_path, position)
 
         return image
 
-    def draw_text_with_wrapping(self, image, text, text_color, font_path):
+    def draw_text_full_width(self, image, text, text_color, font_path):
         draw = ImageDraw.Draw(image)
         img_width, img_height = image.size
-        margin = 40
-        
-        font_size = 100
-        font = ImageFont.truetype(font_path, font_size)
-        
-        while True:
-            avg_char_width = sum(font.getbbox(c)[2] for c in "abcdefghijklmnopqrstuvwxyz") / 26
-            if avg_char_width == 0: 
-                avg_char_width = font_size
-            max_chars_per_line = int((img_width - 2 * margin) / avg_char_width)
-            wrapped_text = textwrap.fill(text, width=max_chars_per_line)
-            
-            text_bbox = draw.textbbox((0,0), wrapped_text, font=font)
-            text_height = text_bbox[3] - text_bbox[1]
+        margin = int(img_width * 0.05) # 5% margin
+        target_width = img_width - (2 * margin)
 
-            if text_height < img_height - 2 * margin and font_size > 10:
-                break
-            font_size -= 5
-            if font_size <= 9:
-                break
+        # 1. Process text for BiDi and line breaks
+        processed_lines = []
+        for line in text.split('\n'):
+            reshaped_line = arabic_reshaper.reshape(line)
+            bidi_line = get_display(reshaped_line)
+            processed_lines.append(bidi_line)
+
+        # 2. Find optimal font size
+        font_size = 200 # Start with a large font size
+        font = ImageFont.truetype(font_path, font_size)
+
+        while font_size > 10:
+            wrapped_lines = []
+            total_height = 0
+            for line in processed_lines:
+                words = line.split(' ')
+                current_line = ''
+                for word in words:
+                    if font.getbbox(current_line + ' ' + word)[2] <= target_width:
+                        current_line += ' ' + word
+                    else:
+                        wrapped_lines.append(current_line.strip())
+                        current_line = word
+                wrapped_lines.append(current_line.strip())
+            
+            # Calculate total height of wrapped lines
+            text_bbox = draw.textbbox((0,0), '\n'.join(wrapped_lines), font=font)
+            total_height = text_bbox[3] - text_bbox[1]
+
+            if total_height < img_height - (2 * margin):
+                break # This font size fits
+            font_size -= 5 # Decrease font size and try again
             font = ImageFont.truetype(font_path, font_size)
 
-        text_bbox = draw.textbbox((0,0), wrapped_text, font=font)
+        # 3. Draw the final text
+        final_text = '\n'.join(wrapped_lines)
+        text_bbox = draw.textbbox((0,0), final_text, font=font, align="center")
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
-        
         x = (img_width - text_width) / 2
         y = (img_height - text_height) / 2
-
+        
         stroke_color = "black" if text_color != "black" else "white"
-        stroke_width = 2
-        draw.text((x, y), wrapped_text, font=font, fill=text_color, stroke_width=stroke_width, stroke_fill=stroke_color, align="center")
+        draw.text((x, y), final_text, font=font, fill=text_color, stroke_width=2, stroke_fill=stroke_color, align="center")
+
+    def draw_text_at_position(self, image, text, text_color, font_path, position):
+        draw = ImageDraw.Draw(image)
+        margin = 20
+        font_size = int(image.height / 8) # Larger default font size
+        font = ImageFont.truetype(font_path, font_size)
+
+        # Process each line separately to preserve line breaks
+        lines = []
+        for line in text.split('\n'):
+            reshaped_line = arabic_reshaper.reshape(line)
+            bidi_line = get_display(reshaped_line)
+            lines.append(bidi_line)
+        
+        final_text = '\n'.join(lines)
+        text_bbox = draw.textbbox((0,0), final_text, font=font, align="center")
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+
+        x, y = self.calculate_text_position(image.size, (text_width, text_height), position, margin)
+        
+        stroke_color = "black" if text_color != "black" else "white"
+        draw.text((x, y), final_text, font=font, fill=text_color, stroke_width=2, stroke_fill=stroke_color, align="center")
 
     def calculate_text_position(self, image_size, text_size, position, margin):
         img_width, img_height = image_size
@@ -304,7 +320,7 @@ class ImageTextEditorApp(QMainWindow):
             return 80
         elif quality_text == "Low":
             return 65
-        return 95 # Default
+        return 95
 
     def save_image(self, image):
         save_path, selected_filter = QFileDialog.getSaveFileName(self, "Save Image", "generated_image.png", "PNG Image (*.png);;JPEG Image (*.jpg)")
