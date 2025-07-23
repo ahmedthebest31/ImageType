@@ -53,6 +53,7 @@ class ImageTextEditorApp(QMainWindow):
         grid_layout.addWidget(self.text_style_combo, 2, 0)
 
         self.text_color_combo = QComboBox()
+        self.text_color_combo.setAccessibleName("Text color")
         self.text_color_combo.addItems(["black", "white", "red", "blue", "green", "yellow"])
         grid_layout.addWidget(self.text_color_combo, 2, 1)
 
@@ -75,12 +76,14 @@ class ImageTextEditorApp(QMainWindow):
         grid_layout.addWidget(self.image_dimensions_combo, 4, 0)
 
         self.background_type_combo = QComboBox()
+        self.background_type_combo.setAccessibleName("background type ")
         self.background_type_combo.addItems(["Use Existing Image", "Transparent", "Solid Color"])
         self.background_type_combo.currentTextChanged.connect(self.update_background_options)
         grid_layout.addWidget(self.background_type_combo, 4, 1)
 
         self.background_color_label = QLabel("Background Color:")
         self.background_color_combo = QComboBox()
+        self.background_color_combo.setAccessibleName("background color")
         self.background_color_combo.addItems(["white", "black", "gray", "lightblue", "lightgreen"])
         grid_layout.addWidget(self.background_color_label, 5, 0)
         grid_layout.addWidget(self.background_color_combo, 5, 1)
