@@ -5,7 +5,7 @@ import os
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QGridLayout, QLabel,
     QPushButton, QPlainTextEdit, QComboBox, QFileDialog, QMessageBox, QCheckBox,
-    QDialog, QVBoxLayout, QHBoxLayout, QMenuBar, QSizePolicy, QMenu
+    QDialog, QVBoxLayout, QHBoxLayout, QMenuBar, QSizePolicy, QMenu, QInputDialog
 )
 from PySide6.QtGui import QPixmap, QImage, QKeyEvent, QGuiApplication, QDesktopServices, QActionGroup
 from PySide6.QtCore import Qt, QUrl, QSize
@@ -14,14 +14,19 @@ import io
 import arabic_reshaper
 from bidi.algorithm import get_display
 
-APP_VERSION = "1.5"
+APP_VERSION = "1.6"
 GITHUB_VERSION_URL = "https://raw.githubusercontent.com/ahmedthebest31/ImageType/main/version.json"
 GITHUB_RELEASES_URL = "https://github.com/ahmedthebest31/ImageType/releases"
 CONFIG_FILE = "config.json"
 LANGUAGES_DIR = "languages"
 FONTS_DIR = "fonts"
+TEMPLATES_DIR = "templates"
 TRANSLATIONS = {}
 CURRENT_LANG = "ar_eg"
+
+# Ensure templates directory exists
+if not os.path.exists(TEMPLATES_DIR):
+    os.makedirs(TEMPLATES_DIR)
 
 def load_config():
     """Loads configuration from file."""
@@ -62,46 +67,38 @@ class AboutDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
 
-        # Name
         name_label = QLabel(f"<b>{tr('about_dialog_name')}</b>")
         name_label.setAccessibleName(tr("about_dialog_name"))
         layout.addWidget(name_label)
 
-        # Version
         version_label = QLabel(f"<b>{tr('about_dialog_version', APP_VERSION)}</b>")
         version_label.setAccessibleName(tr('about_dialog_version', APP_VERSION))
         layout.addWidget(version_label)
 
-        # Description
         description_text = tr("about_dialog_description_text")
         description_label = QLabel(f"<b>{tr('about_dialog_description_text')}</b><br>{description_text}")
         description_label.setWordWrap(True)
         description_label.setAccessibleName(tr("about_dialog_description_text"))
         layout.addWidget(description_label)
 
-        # Developer
         developer_label = QLabel(f"<b>{tr('about_dialog_developer')}</b>")
         developer_label.setAccessibleName(tr("about_dialog_developer"))
         layout.addWidget(developer_label)
 
-        # Email
         email_label = QLabel(f"<b>{tr('about_dialog_email')}</b>")
         email_label.setAccessibleName(tr("about_dialog_email"))
         layout.addWidget(email_label)
 
-        # GitHub
         github_label = QLabel(f"<b>{tr('about_dialog_github')}</b><br><a href=\"https://github.com/ahmedthebest31/ImageType\">https://github.com/ahmedthebest31/ImageType</a>")
         github_label.setOpenExternalLinks(True)
         github_label.setAccessibleName(tr("about_dialog_github"))
         layout.addWidget(github_label)
 
-        # LinkedIn
         linkedin_label = QLabel(f"<b>{tr('about_dialog_linkedin')}</b><br><a href=\"https://www.linkedin.com/in/ahmedthebest\">https://www.linkedin.com/in/ahmedthebest</a>")
         linkedin_label.setOpenExternalLinks(True)
         linkedin_label.setAccessibleName(tr("about_dialog_linkedin"))
         layout.addWidget(linkedin_label)
 
-        # Close Button
         close_button = QPushButton(tr("about_dialog_close_button"))
         close_button.setAccessibleName(tr("about_dialog_close_button") + " Button")
         close_button.clicked.connect(self.accept)
@@ -125,6 +122,7 @@ class ImageTextEditorApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.loaded_image = None
+        self.current_image_path = ""
         self.generated_image = None
         
         self.font_paths = {
@@ -144,7 +142,150 @@ class ImageTextEditorApp(QMainWindow):
         self.setup_ui()
         self.retranslate_ui()
         self.connect_signals()
+        self.load_templates_to_menu()
+    
+    def setup_menubar(self):
+        menubar = self.menuBar()
+        menubar.clear()
 
+        file_menu = menubar.addMenu(tr("menu_file"))
+        file_menu.setAccessibleName(tr("menu_file") + " Menu")
+        
+        new_template_action = file_menu.addAction(tr("menu_file_new_template"))
+        new_template_action.triggered.connect(self.new_template)
+
+        save_template_action = file_menu.addAction(tr("menu_file_save_template"))
+        save_template_action.triggered.connect(self.save_template)
+
+        file_menu.addSeparator()
+        
+        exit_action = file_menu.addAction(tr("menu_file_exit"))
+        exit_action.triggered.connect(self.close)
+
+        settings_menu = menubar.addMenu(tr("menu_settings"))
+        settings_menu.setAccessibleName(tr("menu_settings") + " Menu")
+        
+        self.templates_menu = settings_menu.addMenu(tr("menu_settings_templates"))
+        self.templates_menu.setAccessibleName(tr("menu_settings_templates") + " Menu")
+
+        self.language_menu = settings_menu.addMenu(tr("menu_settings_language"))
+        self.language_menu.setAccessibleName(tr("menu_settings_language") + " Menu")
+        
+        lang_group = QActionGroup(self)
+        lang_group.setExclusive(True)
+        for lang_code, translations in TRANSLATIONS.items():
+            lang_name = translations.get("lang_name", lang_code)
+            action = self.language_menu.addAction(lang_name)
+            action.setCheckable(True)
+            action.triggered.connect(lambda checked, lang=lang_code: self.change_language(lang))
+            lang_group.addAction(action)
+            if lang_code == CURRENT_LANG:
+                action.setChecked(True)
+
+        help_menu = menubar.addMenu(tr("menu_help"))
+        help_menu.setAccessibleName(tr("menu_help") + " Menu")
+
+        about_action = help_menu.addAction(tr("about_action"))
+        about_action.triggered.connect(self.show_about_dialog)
+
+        check_for_updates_action = help_menu.addAction(tr("check_for_updates_action"))
+        check_for_updates_action.triggered.connect(self.check_for_updates)
+
+    def new_template(self):
+        """Resets all UI elements to their default state."""
+        self.text_input.setPlainText("")
+        self.fit_to_width_checkbox.setChecked(False)
+        self.bold_checkbox.setChecked(False)
+        self.italic_checkbox.setChecked(False)
+        self.quran_checkbox.setChecked(False)
+        self.text_color_combo.setCurrentIndex(0)
+        self.text_position_combo.setCurrentIndex(0)
+        self.image_dimensions_combo.setCurrentIndex(0)
+        self.background_type_combo.setCurrentIndex(0)
+        self.background_color_combo.setCurrentIndex(0)
+        self.loaded_image = None
+        self.current_image_path = ""
+        self.image_preview.setText(tr("image_preview_placeholder"))
+        QMessageBox.information(self, tr("dialog_title_success"), tr("msg_template_reset"))
+
+    def save_template(self):
+        """Saves current settings as a new template file."""
+        name, ok = QInputDialog.getText(self, tr("dialog_title_save_template"), tr("msg_enter_template_name"))
+        if ok and name:
+            file_name = f"{name.replace(' ', '_').lower()}.json"
+            template_path = os.path.join(TEMPLATES_DIR, file_name)
+            
+            template_data = {
+                "name": name,
+                "background_type": self.background_type_combo.currentText(),
+                "background_color": self.background_color_combo.currentText(),
+                "text_color": self.text_color_combo.currentText(),
+                "image_dimensions": self.image_dimensions_combo.currentText(),
+                "fit_to_width": self.fit_to_width_checkbox.isChecked(),
+                "bold": self.bold_checkbox.isChecked(),
+                "italic": self.italic_checkbox.isChecked(),
+                "quran": self.quran_checkbox.isChecked(),
+                "text_position": self.text_position_combo.currentText(),
+                "image_path": self.current_image_path if self.loaded_image else ""
+            }
+            
+            try:
+                with open(template_path, "w", encoding="utf-8") as f:
+                    json.dump(template_data, f, indent=4)
+                QMessageBox.information(self, tr("dialog_title_success"), tr("msg_template_saved", name))
+                self.load_templates_to_menu()
+            except Exception as e:
+                QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_template_save_error", e))
+
+    def load_templates_to_menu(self):
+        """Loads available templates and adds them to the Templates menu."""
+        self.templates_menu.clear()
+        
+        try:
+            template_files = [f for f in os.listdir(TEMPLATES_DIR) if f.endswith(".json")]
+            if not template_files:
+                self.templates_menu.addAction(tr("msg_no_templates_found")).setEnabled(False)
+                return
+
+            for filename in template_files:
+                with open(os.path.join(TEMPLATES_DIR, filename), "r", encoding="utf-8") as f:
+                    template_data = json.load(f)
+                    template_name = template_data.get("name", filename.replace(".json", ""))
+                    action = self.templates_menu.addAction(template_name)
+                    action.triggered.connect(lambda checked, data=template_data: self.apply_template(data))
+        except Exception as e:
+            QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_template_load_error", e))
+
+    def apply_template(self, template_data):
+        """Applies a selected template's settings to the UI."""
+        try:
+            self.text_input.setPlainText(template_data.get("sample_text", ""))
+            self.fit_to_width_checkbox.setChecked(template_data.get("fit_to_width", False))
+            self.bold_checkbox.setChecked(template_data.get("bold", False))
+            self.italic_checkbox.setChecked(template_data.get("italic", False))
+            self.quran_checkbox.setChecked(template_data.get("quran", False))
+
+            self.background_type_combo.setCurrentText(template_data.get("background_type", tr("background_type_transparent")))
+            self.background_color_combo.setCurrentText(template_data.get("background_color", tr("color_white")))
+            self.text_color_combo.setCurrentText(template_data.get("text_color", tr("color_black")))
+            self.image_dimensions_combo.setCurrentText(template_data.get("image_dimensions", tr("image_dimensions_standard")))
+            self.text_position_combo.setCurrentText(template_data.get("text_position", tr("text_position_center")))
+
+            image_path = template_data.get("image_path")
+            if image_path and os.path.exists(image_path):
+                self.loaded_image = Image.open(image_path)
+                self.current_image_path = image_path
+            else:
+                self.loaded_image = None
+                self.current_image_path = ""
+                if image_path:
+                    QMessageBox.warning(self, tr("dialog_title_warning"), tr("msg_template_image_not_found"))
+                
+            self.update_preview_live()
+            
+        except Exception as e:
+            QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_apply_template_error", e))
+    
     def setup_ui(self):
         self.setup_menubar()
         central_widget = QWidget()
@@ -303,42 +444,6 @@ class ImageTextEditorApp(QMainWindow):
             self.quran_checkbox.setChecked(False)
             self.update_preview_live()
 
-    def setup_menubar(self):
-        menubar = self.menuBar()
-        
-        file_menu = menubar.addMenu(tr("menu_file"))
-        file_menu.setAccessibleName(tr("menu_file") + " Menu")
-        
-        exit_action = file_menu.addAction(tr("menu_file_exit"))
-        exit_action.triggered.connect(self.close)
-
-        help_menu = menubar.addMenu(tr("menu_help"))
-        help_menu.setAccessibleName(tr("menu_help") + " Menu")
-
-        about_action = help_menu.addAction(tr("about_action"))
-        about_action.triggered.connect(self.show_about_dialog)
-
-        check_for_updates_action = help_menu.addAction(tr("check_for_updates_action"))
-        check_for_updates_action.triggered.connect(self.check_for_updates)
-
-        settings_menu = menubar.addMenu(tr("menu_settings"))
-        settings_menu.setAccessibleName(tr("menu_settings") + " Menu")
-
-        self.language_menu = QMenu(tr("menu_settings_language"), self)
-        settings_menu.addMenu(self.language_menu)
-
-        lang_group = QActionGroup(self)
-        lang_group.setExclusive(True)
-
-        for lang_code, translations in TRANSLATIONS.items():
-            lang_name = translations.get("lang_name", lang_code)
-            action = self.language_menu.addAction(lang_name)
-            action.setCheckable(True)
-            action.triggered.connect(lambda checked, lang=lang_code: self.change_language(lang))
-            lang_group.addAction(action)
-            if lang_code == CURRENT_LANG:
-                action.setChecked(True)
-
     def retranslate_colors(self):
         colors = ["black", "white", "red", "blue", "green", "yellow"]
         self.text_color_combo.clear()
@@ -361,31 +466,37 @@ class ImageTextEditorApp(QMainWindow):
             response.raise_for_status()
             latest_version_data = response.json()
             latest_version = latest_version_data.get("version")
-            whats_new = latest_version_data.get("what's new", "No new features listed.")
+            whats_new = latest_version_data.get("whats_new", tr("msg_no_new_features"))
+            download_url = latest_version_data.get("direct_download_url", GITHUB_RELEASES_URL)
 
             if latest_version and self.compare_versions(latest_version, APP_VERSION) > 0:
                 msg_box = QMessageBox(self)
                 msg_box.setWindowTitle(tr("dialog_title_update_available"))
-                msg_box.setText(tr("msg_update_available"))
-                msg_box.setInformativeText(tr("msg_update_info", APP_VERSION, latest_version, whats_new))
+                
+                info_text = tr("msg_update_info", APP_VERSION, latest_version)
+                full_text = f"{info_text}\n\n**{tr('whats_new_title')}:**\n{whats_new}"
+                msg_box.setText(full_text)
                 msg_box.setIcon(QMessageBox.Information)
                 msg_box.setAccessibleName(tr("dialog_title_update_available") + " Message Box")
-
-                download_button = msg_box.addButton(tr("button_open_download_page"), QMessageBox.ActionRole)
-                msg_box.addButton(QMessageBox.Ok)
                 
+                download_direct_button = msg_box.addButton(tr("button_direct_download"), QMessageBox.ActionRole)
+                open_page_button = msg_box.addButton(tr("button_open_download_page"), QMessageBox.ActionRole)
+                copy_button = msg_box.addButton(tr("button_copy_notes"), QMessageBox.ActionRole)
+                msg_box.addButton(QMessageBox.Ok)
+
                 msg_box.exec()
 
-                if msg_box.clickedButton() == download_button:
+                clicked_button = msg_box.clickedButton()
+                if clicked_button == download_direct_button:
+                    QDesktopServices.openUrl(QUrl(download_url))
+                elif clicked_button == open_page_button:
                     QDesktopServices.openUrl(QUrl(GITHUB_RELEASES_URL))
+                elif clicked_button == copy_button:
+                    clipboard = QGuiApplication.clipboard()
+                    clipboard.setText(whats_new)
+                    QMessageBox.information(self, tr("dialog_title_success"), tr("msg_notes_copied"))
             else:
-                msg_box = QMessageBox(self)
-                msg_box.setWindowTitle(tr("dialog_title_no_update"))
-                msg_box.setText(tr("msg_no_update"))
-                msg_box.setIcon(QMessageBox.Information)
-                msg_box.setAccessibleName(tr("dialog_title_no_update") + " Message Box")
-                msg_box.exec()
-
+                QMessageBox.information(self, tr("dialog_title_no_update"), tr("msg_no_update"))
         except requests.exceptions.RequestException as e:
             QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_network_error", e))
         except json.JSONDecodeError:
@@ -415,6 +526,7 @@ class ImageTextEditorApp(QMainWindow):
         self.retranslate_ui()
         QMessageBox.information(self, tr("dialog_title_success"), tr("msg_language_changed"))
         self.connect_signals()
+        self.load_templates_to_menu()
 
     def retranslate_ui(self):
         self.setWindowTitle(tr("app_title"))
@@ -464,11 +576,8 @@ class ImageTextEditorApp(QMainWindow):
         self.generate_image_button.setText(tr("generate_and_save_button"))
         self.image_preview.setText(tr("image_preview_placeholder"))
 
-        # Update menubar
-        self.menuBar().clear()
         self.setup_menubar()
 
-        # Relaunch the About Dialog if it's open to refresh its text
         for widget in QApplication.topLevelWidgets():
             if isinstance(widget, AboutDialog):
                 widget.close()
@@ -484,6 +593,7 @@ class ImageTextEditorApp(QMainWindow):
         if file_name:
             try:
                 self.loaded_image = Image.open(file_name)
+                self.current_image_path = file_name
                 self.update_preview(self.loaded_image)
             except Exception as e:
                 QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_could_not_load_image", e))
@@ -571,15 +681,10 @@ class ImageTextEditorApp(QMainWindow):
             return image
 
         if self.fit_to_width_checkbox.isChecked():
-            # Process each line individually to maintain order
             lines = text.splitlines()
             formatted_lines = [get_display(arabic_reshaper.reshape(line)) for line in lines]
             
-            # Use a dummy font size to find the best fit
             font_size = 200
-            font = ImageFont.truetype(font_path, font_size)
-            
-            # Calculate required height and adjust font size
             img_width, img_height = image.size
             margin = int(img_width * 0.05)
             target_width = img_width - (2 * margin)
@@ -588,7 +693,6 @@ class ImageTextEditorApp(QMainWindow):
             while font_size > 10:
                 current_font = ImageFont.truetype(font_path, font_size)
                 
-                # Check if each line fits within the image width
                 wrapped_lines = []
                 for line in formatted_lines:
                     words = line.split()
@@ -603,7 +707,6 @@ class ImageTextEditorApp(QMainWindow):
                     if current_line:
                         wrapped_lines.append(current_line)
                 
-                # Calculate total height of the wrapped text
                 total_text_height = sum(draw.textbbox((0, 0), line, font=current_font, align="right")[3] - draw.textbbox((0, 0), line, font=current_font, align="right")[1] for line in wrapped_lines)
                 
                 if total_text_height < img_height - (2 * margin):
@@ -613,7 +716,6 @@ class ImageTextEditorApp(QMainWindow):
                 
                 font_size -= 5
                 
-            # Draw the final formatted text
             y = (img_height - total_text_height) / 2
             stroke_color = "black" if text_color != "black" else "white"
             for line in formatted_lines:
@@ -634,22 +736,18 @@ class ImageTextEditorApp(QMainWindow):
         font_size = int(image.height / 8)
         font = ImageFont.truetype(font_path, font_size)
         
-        # Process each line individually to maintain order
         lines = text.splitlines()
         reshaped_lines = [get_display(arabic_reshaper.reshape(line)) for line in lines]
         
-        # Calculate total text size for positioning
         total_text_height = sum(draw.textbbox((0,0), line, font=font, align="right")[3] - draw.textbbox((0,0), line, font=font, align="right")[1] for line in reshaped_lines)
         max_line_width = max(draw.textlength(line, font=font) for line in reshaped_lines)
 
         start_x, start_y = self.calculate_text_position(image.size, (max_line_width, total_text_height), position, margin)
 
-        # Draw each line individually
         current_y = start_y
         for line in reshaped_lines:
             line_width = draw.textlength(line, font=font)
 
-            # Adjust x-position for each line to align to the right or left
             if tr("text_position_left") in position:
                 x = start_x
             elif tr("text_position_right") in position:
