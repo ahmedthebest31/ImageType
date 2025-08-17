@@ -3,11 +3,11 @@
     "app_title": "محرر الصور والنصوص",
     "text_input_placeholder": "أدخل النص الذي ترغب في إضافته إلى الصورة هنا...",
     "load_image_button": "تحميل صورة",
-    "fit_to_width_checkbox": "توسيط النص وملء عرض الصورة",
-    "text_style_combo_label": "نمط النص",
-    "text_style_normal": "عادي",
+    "fit_to_width_checkbox": "تعديل النص ليلائم الصورة",
+    "text_style_label": "نمط الخط:",
     "text_style_bold": "عريض",
     "text_style_italic": "مائل",
+    "text_style_quran": "قرآني",
     "text_color_combo_label": "لون النص",
     "text_position_combo_label": "موقع النص",
     "text_position_top_left": "أعلى اليسار",
@@ -79,5 +79,6 @@
     "msg_network_error": "خطأ في الشبكة: {}",
     "msg_update_parse_error": "خطأ في قراءة بيانات التحديث.",
     "msg_unexpected_error": "حدث خطأ غير متوقع: {}",
-    "msg_language_changed": "تم تغيير اللغة بنجاح."
+    "msg_language_changed": "تم تغيير اللغة بنجاح.",
+    "msg_font_not_found": "ملف الخط {} غير موجود."
 }
