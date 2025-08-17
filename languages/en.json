@@ -60,11 +60,11 @@
     "button_open_download_page": "Open Download Page",
     "button_copy_notes": "Copy Notes",
     "file_dialog_filter": "Images (*.png *.jpg *.jpeg)",
-    "about_dialog_name": "Image Writer",
+    "about_dialog_name": "image type",
     "about_dialog_version": "Version: {}",
     "about_dialog_description_text": "A simple open-source application to write on images.",
-    "about_dialog_developer": "Developer: Ahmed Adel",
-    "about_dialog_email": "Email: ahmedadel31@gmail.com",
+    "about_dialog_developer": "Developer: Ahmed Samy",
+    "about_dialog_email": "Email: ahmedthebest31@gmail.com",
     "about_dialog_github": "GitHub",
     "about_dialog_linkedin": "LinkedIn",
     "about_dialog_close_button": "Close",
@@ -92,8 +92,8 @@
     "text_position_bottom_left": "Bottom Left",
     "text_position_bottom_center": "Bottom Center",
     "text_position_bottom_right": "Bottom Right",
-    "image_quality_high": "High (95%)",
-    "image_quality_medium": "Medium (80%)",
-    "image_quality_low": "Low (65%)",
-    "lang_name": "English (US)"
+    "image_quality_high": "High",
+    "image_quality_medium": "Medium",
+    "image_quality_low": "Low",
+    "lang_name": "English"
 }
