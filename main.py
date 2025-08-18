@@ -130,7 +130,7 @@ class ImageTextEditorApp(QMainWindow):
             "bold": os.path.join(FONTS_DIR, "Amiri-Bold.ttf"),
             "italic": os.path.join(FONTS_DIR, "Amiri-Italic.ttf"),
             "bold_italic": os.path.join(FONTS_DIR, "Amiri-BoldItalic.ttf"),
-            "quran": os.path.join(FONTS_DIR, "AmiriQuran.ttf")
+            "quran": os.path.join(FONTS_DIR, "AmiriQuranColored.ttf")
         }
         
         global CURRENT_LANG
@@ -445,13 +445,13 @@ class ImageTextEditorApp(QMainWindow):
             self.update_preview_live()
 
     def retranslate_colors(self):
-        colors = ["black", "white", "red", "blue", "green", "yellow"]
+        colors = ["black", "white", "red", "blue", "green", "yellow", "orange", "pink"]
         self.text_color_combo.clear()
         for color in colors:
             self.text_color_combo.addItem(tr(f"color_{color}"), color)
 
     def retranslate_background_colors(self):
-        colors = ["white", "black", "gray", "lightblue", "lightgreen"]
+        colors = ["white", "black", "gray", "blue", "lightblue", "green", "lightgreen", "yellow", "red", "orange", "pink"]
         self.background_color_combo.clear()
         for color in colors:
             self.background_color_combo.addItem(tr(f"color_{color}"), color)
@@ -682,17 +682,18 @@ class ImageTextEditorApp(QMainWindow):
 
         if self.fit_to_width_checkbox.isChecked():
             lines = text.splitlines()
+            # Always reshape and apply bidi for all fonts
             formatted_lines = [get_display(arabic_reshaper.reshape(line)) for line in lines]
-            
+
             font_size = 200
             img_width, img_height = image.size
             margin = int(img_width * 0.05)
             target_width = img_width - (2 * margin)
-            
+
             total_text_height = 0
             while font_size > 10:
                 current_font = ImageFont.truetype(font_path, font_size)
-                
+
                 wrapped_lines = []
                 for line in formatted_lines:
                     words = line.split()
@@ -706,16 +707,16 @@ class ImageTextEditorApp(QMainWindow):
                             current_line = word
                     if current_line:
                         wrapped_lines.append(current_line)
-                
+
                 total_text_height = sum(draw.textbbox((0, 0), line, font=current_font, align="right")[3] - draw.textbbox((0, 0), line, font=current_font, align="right")[1] for line in wrapped_lines)
-                
+
                 if total_text_height < img_height - (2 * margin):
                     formatted_lines = wrapped_lines
                     font = current_font
                     break
-                
+
                 font_size -= 5
-                
+
             y = (img_height - total_text_height) / 2
             stroke_color = "black" if text_color != "black" else "white"
             for line in formatted_lines:
@@ -735,10 +736,11 @@ class ImageTextEditorApp(QMainWindow):
         margin = 20
         font_size = int(image.height / 8)
         font = ImageFont.truetype(font_path, font_size)
-        
+
         lines = text.splitlines()
+        # Always reshape and apply bidi for all fonts
         reshaped_lines = [get_display(arabic_reshaper.reshape(line)) for line in lines]
-        
+
         total_text_height = sum(draw.textbbox((0,0), line, font=font, align="right")[3] - draw.textbbox((0,0), line, font=font, align="right")[1] for line in reshaped_lines)
         max_line_width = max(draw.textlength(line, font=font) for line in reshaped_lines)
 
