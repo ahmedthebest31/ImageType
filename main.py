@@ -449,13 +449,13 @@ class ImageTextEditorApp(QMainWindow):
             self.update_preview_live()
 
     def retranslate_colors(self):
-        colors = ["black", "white", "red", "blue", "green", "yellow"]
+        colors = ["black", "white", "red", "blue", "green", "yellow", "orange", "pink"]
         self.text_color_combo.clear()
         for color in colors:
             self.text_color_combo.addItem(tr(f"color_{color}"), color)
 
     def retranslate_background_colors(self):
-        colors = ["white", "black", "gray", "lightblue", "lightgreen"]
+        colors = ["white", "black", "gray", "blue", "lightblue", "green", "lightgreen", "yellow", "red", "orange", "pink"]
         self.background_color_combo.clear()
         for color in colors:
             self.background_color_combo.addItem(tr(f"color_{color}"), color)
