@@ -112,7 +112,10 @@ class AboutDialog(QDialog):
 
 class AccessiblePlainTextEdit(QPlainTextEdit):
     def keyPressEvent(self, event: QKeyEvent):
-        if event.key() == Qt.Key.Key_Tab:
+        if event.key() == Qt.Key.Key_Backtab:
+            self.parentWidget().focusPreviousChild()
+            event.accept()
+        elif event.key() == Qt.Key.Key_Tab:
             self.parentWidget().focusNextChild()
             event.accept()
         else:
