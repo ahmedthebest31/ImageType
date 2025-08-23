@@ -297,6 +297,7 @@ class ImageTextEditorApp(QMainWindow):
 
         self.text_input = AccessiblePlainTextEdit()
         self.text_input.setPlaceholderText(tr("text_input_placeholder"))
+        self.text_input.setAccessibleName(tr("text_input_placeholder"))
         grid_layout.addWidget(self.text_input, 0, 0, 1, 2)
 
         self.load_image_button = QPushButton(tr("load_image_button"))
