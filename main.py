@@ -89,15 +89,15 @@ class AboutDialog(QDialog):
         email_label.setAccessibleName(tr("about_dialog_email"))
         layout.addWidget(email_label)
 
-        github_label = QLabel(f"<b>{tr('about_dialog_github')}</b><br><a href=\"https://github.com/ahmedthebest31/ImageType\">https://github.com/ahmedthebest31/ImageType</a>")
-        github_label.setOpenExternalLinks(True)
-        github_label.setAccessibleName(tr("about_dialog_github"))
-        layout.addWidget(github_label)
+        github_button = QPushButton(tr('about_dialog_github'))
+        github_button.setAccessibleName(tr("about_dialog_github") + " Button")
+        github_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/ahmedthebest31/ImageType")))
+        layout.addWidget(github_button)
 
-        linkedin_label = QLabel(f"<b>{tr('about_dialog_linkedin')}</b><br><a href=\"https://www.linkedin.com/in/ahmedthebest\">https://www.linkedin.com/in/ahmedthebest</a>")
-        linkedin_label.setOpenExternalLinks(True)
-        linkedin_label.setAccessibleName(tr("about_dialog_linkedin"))
-        layout.addWidget(linkedin_label)
+        linkedin_button = QPushButton(tr('about_dialog_linkedin'))
+        linkedin_button.setAccessibleName(tr("about_dialog_linkedin") + " Button")
+        linkedin_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://www.linkedin.com/in/ahmedthebest")))
+        layout.addWidget(linkedin_button)
 
         close_button = QPushButton(tr("about_dialog_close_button"))
         close_button.setAccessibleName(tr("about_dialog_close_button") + " Button")
@@ -112,7 +112,10 @@ class AboutDialog(QDialog):
 
 class AccessiblePlainTextEdit(QPlainTextEdit):
     def keyPressEvent(self, event: QKeyEvent):
-        if event.key() == Qt.Key.Key_Tab:
+        if event.key() == Qt.Key.Key_Backtab:
+            self.parentWidget().focusPreviousChild()
+            event.accept()
+        elif event.key() == Qt.Key.Key_Tab:
             self.parentWidget().focusNextChild()
             event.accept()
         else:
@@ -294,6 +297,7 @@ class ImageTextEditorApp(QMainWindow):
 
         self.text_input = AccessiblePlainTextEdit()
         self.text_input.setPlaceholderText(tr("text_input_placeholder"))
+        self.text_input.setAccessibleName(tr("text_input_placeholder"))
         grid_layout.addWidget(self.text_input, 0, 0, 1, 2)
 
         self.load_image_button = QPushButton(tr("load_image_button"))
@@ -445,13 +449,13 @@ class ImageTextEditorApp(QMainWindow):
             self.update_preview_live()
 
     def retranslate_colors(self):
-        colors = ["black", "white", "red", "blue", "green", "yellow"]
+        colors = ["black", "white", "red", "blue", "green", "yellow", "orange", "pink"]
         self.text_color_combo.clear()
         for color in colors:
             self.text_color_combo.addItem(tr(f"color_{color}"), color)
 
     def retranslate_background_colors(self):
-        colors = ["white", "black", "gray", "lightblue", "lightgreen"]
+        colors = ["white", "black", "gray", "blue", "lightblue", "green", "lightgreen", "yellow", "red", "orange", "pink"]
         self.background_color_combo.clear()
         for color in colors:
             self.background_color_combo.addItem(tr(f"color_{color}"), color)
