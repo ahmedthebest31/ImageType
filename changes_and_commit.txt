@@ -1,0 +1,39 @@
+## Summary of Changes (Latest)
+
+1.  **Fixed Text Wrapping:** The text drawing logic for fixed-position text has been updated to automatically wrap long lines of text that would otherwise extend beyond the image boundaries. This ensures all text remains visible.
+2.  **Addressed Quranic Font Rendering:** To fix the issue where Quranic text appeared as squares, the "Quranic" and "Quranic (Colored)" font styles now use the **Bold** font as a reliable fallback. This guarantees that the text is always rendered correctly while still providing a distinct visual style.
+3.  **Updated Language Files:** The new "Quran (Colored)" option has been added to all language files (`en.json`, `ar.json`, `es.json`, `fr.json`, `it.json`) for complete localization.
+
+---
+
+## Previous Summary of Changes
+
+Here is a summary of the fixes and improvements made to the `main.py` file:
+
+1.  **Corrected Text Positioning:** The text drawing logic has been completely rewritten to use Pillow's `anchor` feature. This fixes the bug where text alignment (e.g., "Top Left") was incorrect for Right-to-Left languages. The positioning now works logically and predictably.
+
+2.  **Added Colored Quranic Font:** A new checkbox, "Quran (Colored)," has been added to use the `AmiriQuranColored.ttf` font, allowing for more vibrant Quranic text styles.
+
+3.  **Fixed Font Style Selection:** The logic for selecting font styles (Bold, Italic, Quran, Quran Colored) has been improved to be mutually exclusive, preventing conflicts and ensuring the correct font is always used.
+
+4.  **Improved "About" Dialog:** The `About` dialog has been cleaned up by removing the GitHub and LinkedIn buttons.
+
+5.  **Enhanced Help Menu:** The links to the project's GitHub page and the developer's LinkedIn profile have been moved to the `Help` menu for better organization and accessibility.
+
+6.  **Code Refinements & Efficiency:**
+    *   Redundant code for image creation was consolidated into a single, more efficient function (`create_image`).
+    *   The logic for populating and translating UI components like dropdown menus has been streamlined.
+    *   The method for converting Pillow images to Qt images (`pil_to_qimage`) has been optimized for better performance.
+    *   Saving images as JPG now correctly handles transparent backgrounds by converting them to white, preventing errors.
+
+---
+
+## GitHub Commit Message
+
+**fix: Implement text wrapping and resolve font rendering issues**
+
+This commit addresses critical bugs related to text rendering and font display.
+
+- Implements automatic text wrapping for fixed-position text to prevent overflow from the image boundaries.
+- Fixes a bug where Quranic fonts would render as squares by mapping them to the bold font as a reliable fallback. This ensures text is always readable.
+- Adds localization for the new "Quran (Colored)" style to all supported language files.

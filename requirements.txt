@@ -3,3 +3,4 @@ Pillow==11.3.0
 PySide6==6.9.1
 Requests==2.32.4
 python-bidi
+qtawesome
