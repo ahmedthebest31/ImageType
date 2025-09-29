@@ -1,0 +1,76 @@
+name: Build Executable
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            asset_name: ImageType-win-x64.zip
+          - os: ubuntu-latest
+            asset_name: ImageType-linux-x64.zip
+          - os: macos-latest
+            asset_name: ImageType-mac-x64.zip
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Install UPX (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y upx-ucl
+      
+    - name: Install UPX (macOS)
+      if: runner.os == 'macOS'
+      run: brew install upx
+
+    - name: Install UPX (Windows)
+      if: runner.os == 'Windows'
+      run: choco install upx
+
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller --noconfirm --onefile --windowed --name "ImageType" \
+        --add-data "fonts;fonts" \
+        --add-data "languages;languages" \
+        --add-data "templates;templates" \
+        --add-data "themes;themes" \
+        --add-data "config.json;." \
+        --add-data "version.json;." \
+        --upx-dir /usr/bin/upx \
+        main.py
+
+    - name: Package Application (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        Compress-Archive -Path dist/ImageType.exe -DestinationPath ${{ matrix.asset_name }}
+      shell: pwsh
+
+    - name: Package Application (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        zip -r ${{ matrix.asset_name }} dist/ImageType
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.asset_name }}
+        path: ${{ matrix.asset_name }}
