@@ -813,9 +813,13 @@ class ImageTextEditorApp(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_could_not_save_image", e))
         
-if __name__ == "__main__":
+def main():
     load_translations()
     app = QApplication(sys.argv)
     window = ImageTextEditorApp()
     window.show()
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()

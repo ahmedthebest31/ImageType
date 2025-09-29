@@ -1,7 +1,17 @@
 [project]
-name = "imagetype"
-version = "0.1.0"
-description = "Add your description here"
+name = "ImageType"
+version = "1.9"
+description = "An application for adding text to images, with support for templates and multiple languages."
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = []
+requires-python = ">=3.11"
+dependencies = [
+    "arabic_reshaper==3.0.0",
+    "Pillow==11.3.0",
+    "PySide6==6.9.1",
+    "Requests==2.32.4",
+    "python-bidi==0.6.6",
+    "qtawesome==1.4.0",
+]
+
+[project.gui-scripts]
+imagetype = "main:main"
