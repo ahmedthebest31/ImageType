@@ -1,0 +1,188 @@
+name: app-build 
+
+on:
+  # Allows this workflow to be run manually from the GitHub Actions interface
+  workflow_dispatch:
+
+# --- WINDOWS BUILD JOB ---
+jobs:
+  build-windows:
+    name: Build Windows Executable
+    runs-on: windows-latest
+    env:
+      ASSET_NAME: ImageType-win-x64
+      ZIP_FILE_NAME: ImageType-win-x64.zip # Final Zip file name
+      EXE_NAME: ImageType.exe
+      RELEASE_DIR: release/ImageType-win-x64
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies and PyInstaller
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Install UPX
+      run: choco install upx
+      
+    - name: Build Single Executable
+      shell: bash 
+      run: |
+        pyinstaller --noconfirm --onefile --windowed --name "ImageType" main.py
+
+    - name: Assemble Release Assets (Folders)
+      shell: pwsh
+      run: |
+        # Create the final directory
+        New-Item -ItemType Directory -Force -Path $env:RELEASE_DIR
+        
+        # Copy asset folders and required files from the project root
+        Copy-Item -Path fonts, languages, templates, themes, config.json, version.json -Destination $env:RELEASE_DIR -Recurse -Force
+        
+        # Copy documentation/notes
+        "Thank you for using our app!" | Out-File -FilePath "$env:RELEASE_DIR/README.txt" -Encoding UTF8
+        
+    - name: Copy Executable (Windows)
+      shell: pwsh
+      run: Copy-Item -Path dist/$env:EXE_NAME -Destination $env:RELEASE_DIR -Force
+
+    # Package contents only, avoiding intermediate folder
+    - name: Package Final Application (Zip)
+      shell: pwsh
+      run: |
+        Compress-Archive -Path $env:RELEASE_DIR\* -DestinationPath $env:ZIP_FILE_NAME -Force
+        
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ZIP_FILE_NAME }}
+        path: ${{ env.ZIP_FILE_NAME }}
+        retention-days: 90
+
+# --- LINUX BUILD JOB ---
+  build-linux:
+    name: Build Linux Executable
+    runs-on: ubuntu-latest
+    env:
+      ASSET_NAME: ImageType-linux-x64
+      ZIP_FILE_NAME: ImageType-linux-x64.zip # Final Zip file name
+      EXE_NAME: ImageType
+      RELEASE_DIR: release/ImageType-linux-x64
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies and PyInstaller
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Install UPX
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y upx-ucl
+
+    - name: Build Single Executable
+      run: |
+        pyinstaller --noconfirm --onefile --windowed --name "ImageType" main.py
+
+    - name: Assemble Release Assets
+      run: |
+        mkdir -p "$RELEASE_DIR"
+        
+        # Copy the single executable file
+        cp dist/$EXE_NAME "$RELEASE_DIR/"
+        
+        # Copy asset folders and required files
+        cp -r fonts languages templates themes config.json version.json "$RELEASE_DIR/"
+        
+        # Copy documentation/notes
+        echo "Thank you for using our app!" > "$RELEASE_DIR/README.txt"
+
+    # Package contents only, avoiding intermediate folder
+    - name: Package Final Application (Zip)
+      run: |
+        cd $RELEASE_DIR
+        # Zip contents ('.') and place the zip in the root directory (../../)
+        zip -r ../../${{ env.ZIP_FILE_NAME }} .
+        
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ZIP_FILE_NAME }}
+        path: ${{ env.ZIP_FILE_NAME }}
+        retention-days: 90
+
+# --- MACOS BUILD JOB ---
+  build-macos:
+    name: Build macOS Executable
+    runs-on: macos-latest
+    env:
+      ASSET_NAME: ImageType-mac-x64
+      ZIP_FILE_NAME: ImageType-mac-x64.zip # Final Zip file name
+      EXE_NAME: ImageType
+      RELEASE_DIR: release/ImageType-mac-x64
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies and PyInstaller
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Install UPX
+      run: brew install upx
+
+    - name: Build Single Executable
+      run: |
+        pyinstaller --noconfirm --onefile --windowed --name "ImageType" main.py
+
+    - name: Assemble Release Assets
+      run: |
+        mkdir -p "$RELEASE_DIR"
+        
+        # Copy the single executable file
+        cp dist/$EXE_NAME "$RELEASE_DIR/"
+        
+        # Copy asset folders and required files
+        cp -r fonts languages templates themes config.json version.json "$RELEASE_DIR/"
+        
+        # Copy documentation/notes
+        echo "Thank you for using our app!" > "$RELEASE_DIR/README.txt"
+
+    # Package contents only, avoiding intermediate folder
+    - name: Package Final Application (Zip)
+      run: |
+        cd $RELEASE_DIR
+        # Zip contents ('.') and place the zip in the root directory (../../)
+        zip -r ../../${{ env.ZIP_FILE_NAME }} .
+        
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ZIP_FILE_NAME }}
+        path: ${{ env.ZIP_FILE_NAME }}
+        retention-days: 90
