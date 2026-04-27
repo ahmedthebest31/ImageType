@@ -185,9 +185,19 @@ class ImageTextEditorApp(QMainWindow):
         self.resize(1000, 700)
         self.setup_ui()
         self.retranslate_ui()
+        self.set_default_settings()
         self.connect_signals()
         self.load_templates_to_menu()
         self.load_themes_to_menu()
+        self.update_preview_live()
+
+    def set_default_settings(self):
+        self._set_combo_by_data(self.background_type_combo, "solid")
+        self._set_combo_by_data(self.background_color_combo, "black")
+        self._set_combo_by_data(self.text_color_combo, "white")
+        self._set_combo_by_data(self.text_position_combo, "center")
+        self.update_background_options()
+        self.toggle_position_combo()
 
     def setup_menubar(self):
         menubar = self.menuBar()
@@ -237,14 +247,13 @@ class ImageTextEditorApp(QMainWindow):
         self.text_input.setPlainText("")
         self.font_style_combo.setCurrentIndex(0)
         self.fit_to_width_checkbox.setChecked(False)
-        self.text_color_combo.setCurrentIndex(0)
-        self.text_position_combo.setCurrentIndex(4) # Center
         self.image_dimensions_combo.setCurrentIndex(0)
-        self.background_type_combo.setCurrentIndex(0)
-        self.background_color_combo.setCurrentIndex(0)
         self.loaded_image = None
         self.current_image_path = ""
-        self.image_preview.setText(tr("image_preview_placeholder"))
+        
+        self.set_default_settings()
+        self.update_preview_live()
+        
         QMessageBox.information(self, tr("dialog_title_success"), tr("msg_template_reset"))
 
     def save_template(self):
@@ -539,7 +548,7 @@ class ImageTextEditorApp(QMainWindow):
         for data, key in items.items():
             combo.addItem(tr(key), data)
 
-    def toggle_position_combo(self):
+    def toggle_position_combo(self, *args, **kwargs):
         is_checked = self.fit_to_width_checkbox.isChecked()
         self.text_position_combo.setEnabled(not is_checked)
         self.update_preview_live()
@@ -611,7 +620,7 @@ class ImageTextEditorApp(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_could_not_load_image", e))
 
-    def update_background_options(self):
+    def update_background_options(self, *args, **kwargs):
         is_solid_color = self.background_type_combo.currentData() == "solid"
         self.background_color_label.setVisible(is_solid_color)
         self.background_color_combo.setVisible(is_solid_color)
@@ -666,7 +675,7 @@ class ImageTextEditorApp(QMainWindow):
             if not self.generated_image.mode == 'RGBA' or self.background_type_combo.currentData() != "transparent":
                 QMessageBox.information(self, tr("dialog_title_success"), tr("msg_image_copied"))
 
-    def update_preview_live(self):
+    def update_preview_live(self, *args, **kwargs):
         """Generates and updates the image preview in real-time using a background thread."""
         self._dispatch_thread("preview")
 
@@ -730,6 +739,30 @@ class ImageTextEditorApp(QMainWindow):
 
         if not os.path.exists(font_identifier) and font_family == "Amiri":
              return image
+
+        # Font fallback mechanism for unsupported characters (like Arabic)
+        try:
+            test_font = ImageFont.truetype(font_identifier, 20)
+            
+            missing_boxes = [
+                test_font.getmask('\uFFFF').getbbox(),
+                test_font.getmask('\uFFFD').getbbox(),
+                test_font.getmask('\u0000').getbbox()
+            ]
+            
+            reshaped_text = get_display(arabic_reshaper.reshape(text))
+            
+            for char in set(reshaped_text):
+                if char.isspace(): continue
+                char_bbox = test_font.getmask(char).getbbox()
+                if char_bbox is None or char_bbox in missing_boxes:
+                    # Unsupported character spotted, fallback to Amiri
+                    font_identifier = amiri_fallback_path
+                    font_family = "Amiri"
+                    break
+        except Exception:
+            font_identifier = amiri_fallback_path
+            font_family = "Amiri"
 
         if fit_to_width:
             self.draw_text_fit_to_width(draw, text, font_identifier, text_color, image.size)
