@@ -8,8 +8,10 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QMenuBar, QSizePolicy, QMenu, QInputDialog
 )
 from PySide6.QtGui import QPixmap, QImage, QKeyEvent, QGuiApplication, QDesktopServices, QAction, QActionGroup, QFontDatabase
-from PySide6.QtCore import Qt, QUrl, QSize
+from PySide6.QtCore import Qt, QUrl, QSize, QThread, Signal
 from PIL import Image, ImageDraw, ImageFont
+from PIL.ImageQt import ImageQt
+from typing import Optional, Dict, Any
 import io
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -103,7 +105,7 @@ class AboutDialog(QDialog):
         close_button = QPushButton(tr("about_dialog_close_button"))
         close_button.setAccessibleName(tr("about_dialog_close_button") + " Button")
         close_button.clicked.connect(self.accept)
-        
+
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         button_layout.addWidget(close_button)
@@ -121,24 +123,62 @@ class AccessiblePlainTextEdit(QPlainTextEdit):
         else:
             super().keyPressEvent(event)
 
+class ImageProcessorThread(QThread):
+    finished_image = Signal(object, object, str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.params = {}
+        self.action = "preview"
+        self.is_cancelled = False
+
+    def setup(self, params: Dict[str, Any], action: str = "preview"):
+        self.params = params
+        self.action = action
+        self.is_cancelled = False
+
+    def run(self):
+        processor = self.params.pop("processor", None)
+        if not processor:
+            return
+
+        try:
+            image = processor.create_image(**self.params)
+            if self.is_cancelled:
+                return
+
+            qimage = None
+            if image:
+                # Decoupled thread-safe deep copy using ImageQt
+                qim = ImageQt(image)
+                qimage = qim.copy()
+            
+            if not self.is_cancelled:
+                self.finished_image.emit(image, qimage, self.action)
+        except Exception as e:
+            print(f"Error in image processing thread: {e}")
+
 class ImageTextEditorApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.loaded_image = None
         self.current_image_path = ""
         self.generated_image = None
-        
+
         self.font_paths = {
             "regular": os.path.join(FONTS_DIR, "Amiri", "Amiri-Regular.ttf"),
             "bold": os.path.join(FONTS_DIR, "Amiri", "Amiri-Bold.ttf"),
             "italic": os.path.join(FONTS_DIR, "Amiri", "Amiri-Italic.ttf"),
             "bold_italic": os.path.join(FONTS_DIR, "Amiri", "Amiri-BoldItalic.ttf")
         }
-        
+
+        self.processing_thread = ImageProcessorThread(self)
+        self.processing_thread.finished_image.connect(self.on_image_processed)
+
         global CURRENT_LANG
         config = load_config()
         CURRENT_LANG = config.get("language", "en")
-        
+
         self.apply_theme(config.get("theme", "dark_theme.qss"))
 
         self.setWindowTitle(tr("app_title"))
@@ -148,7 +188,7 @@ class ImageTextEditorApp(QMainWindow):
         self.connect_signals()
         self.load_templates_to_menu()
         self.load_themes_to_menu()
-    
+
     def setup_menubar(self):
         menubar = self.menuBar()
         menubar.clear()
@@ -168,7 +208,7 @@ class ImageTextEditorApp(QMainWindow):
         self.templates_menu = settings_menu.addMenu(tr("menu_settings_templates"))
         self.themes_menu = settings_menu.addMenu(tr("menu_settings_themes"))
         self.language_menu = settings_menu.addMenu(tr("menu_settings_language"))
-        
+
         lang_group = QActionGroup(self)
         lang_group.setExclusive(True)
         for lang_code, translations in sorted(TRANSLATIONS.items()):
@@ -213,7 +253,7 @@ class ImageTextEditorApp(QMainWindow):
         if ok and name:
             file_name = f"{name.replace(' ', '_').lower()}.json"
             template_path = os.path.join(TEMPLATES_DIR, file_name)
-            
+
             template_data = {
                 "name": name,
                 "font_style": self.font_style_combo.currentData(),
@@ -225,7 +265,7 @@ class ImageTextEditorApp(QMainWindow):
                 "text_position": self.text_position_combo.currentData(),
                 "image_path": self.current_image_path if self.loaded_image else ""
             }
-            
+
             try:
                 with open(template_path, "w", encoding="utf-8") as f:
                     json.dump(template_data, f, indent=4)
@@ -237,7 +277,7 @@ class ImageTextEditorApp(QMainWindow):
     def load_templates_to_menu(self):
         """Loads available templates and adds them to the Templates menu."""
         self.templates_menu.clear()
-        
+
         try:
             template_files = [f for f in os.listdir(TEMPLATES_DIR) if f.endswith(".json")]
             if not template_files:
@@ -262,7 +302,7 @@ class ImageTextEditorApp(QMainWindow):
         """Applies a selected template's settings to the UI."""
         try:
             self.text_input.setPlainText(template_data.get("sample_text", ""))
-            
+
             self._set_combo_by_data(self.font_style_combo, template_data.get("font_style"))
             self.fit_to_width_checkbox.setChecked(template_data.get("fit_to_width", False))
             self._set_combo_by_data(self.background_type_combo, template_data.get("background_type"))
@@ -280,12 +320,12 @@ class ImageTextEditorApp(QMainWindow):
                 self.current_image_path = ""
                 if image_path:
                     QMessageBox.warning(self, tr("dialog_title_warning"), tr("msg_template_image_not_found"))
-                
+
             self.update_preview_live()
-            
+
         except Exception as e:
             QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_apply_template_error", e))
-    
+
     def _set_combo_by_data(self, combo, data):
         """Helper to set a QComboBox's current index by its item data."""
         if data is None: return
@@ -349,7 +389,7 @@ class ImageTextEditorApp(QMainWindow):
         self.load_image_button = QPushButton()
         self.fit_to_width_checkbox = QCheckBox()
         grid_layout.addWidget(self.fit_to_width_checkbox, 1, 0, 1, 2)
-        
+
         # Row 2: Font Family and Style
         self.font_family_combo = QComboBox()
         grid_layout.addWidget(self.font_family_combo, 2, 0)
@@ -415,7 +455,7 @@ class ImageTextEditorApp(QMainWindow):
         self.text_input.setPlaceholderText(tr("text_input_placeholder"))
         self.load_image_button.setText(tr("load_image_button"))
         self.fit_to_width_checkbox.setText(tr("fit_to_width_checkbox"))
-        
+
         self._populate_font_style_combo()
         self._populate_font_family_combo()
 
@@ -442,11 +482,11 @@ class ImageTextEditorApp(QMainWindow):
             "white": "color_white", "black": "color_black", "gray": "color_gray", "blue": "color_blue", "lightblue": "color_lightblue",
             "green": "color_green", "lightgreen": "color_lightgreen", "yellow": "color_yellow", "red": "color_red", "orange": "color_orange", "pink": "color_pink"
         })
-        
+
         self._populate_combo(self.image_quality_combo, tr("image_quality_combo_label"), {
             95: "image_quality_high", 80: "image_quality_medium", 65: "image_quality_low"
         })
-        
+
         self.copy_button.setText(tr("copy_button"))
         self.generate_image_button.setText(tr("generate_and_save_button"))
         self.image_preview.setText(tr("image_preview_placeholder"))
@@ -475,15 +515,15 @@ class ImageTextEditorApp(QMainWindow):
         """Populates the font family dropdown with system fonts."""
         self.font_family_combo.clear()
         self.font_family_combo.setAccessibleName(tr("font_family_combo_label"))
-        
+
         db = QFontDatabase()
         families = db.families()
-        
+
         self.font_family_combo.addItem("Amiri") # Add our bundled font first
         for family in sorted(families):
             if family != "Amiri":
                 self.font_family_combo.addItem(family)
-        
+
         self.font_family_combo.setCurrentText("Amiri")
 
     def on_font_family_changed(self, family=None):
@@ -514,7 +554,7 @@ class ImageTextEditorApp(QMainWindow):
             response.raise_for_status()
             latest_version_data = response.json()
             latest_version = latest_version_data.get("version")
-            
+
             if latest_version and self.compare_versions(latest_version, APP_VERSION) > 0:
                 whats_new = latest_version_data.get("whats_new", {}).get(CURRENT_LANG, tr("msg_no_new_features"))
                 download_url = latest_version_data.get("direct_download_url", GITHUB_RELEASES_URL)
@@ -524,7 +564,7 @@ class ImageTextEditorApp(QMainWindow):
                 full_text = f"{info_text}\n\n**{tr('whats_new_title')}:**\n{whats_new}"
                 msg_box.setText(full_text)
                 msg_box.setIcon(QMessageBox.Icon.Information)
-                
+
                 download_button = msg_box.addButton(tr("button_direct_download"), QMessageBox.ButtonRole.ActionRole)
                 open_page_button = msg_box.addButton(tr("button_open_download_page"), QMessageBox.ButtonRole.ActionRole)
                 msg_box.addButton(QMessageBox.StandardButton.Ok)
@@ -581,66 +621,102 @@ class ImageTextEditorApp(QMainWindow):
 
         self.update_preview_live()
 
-    def update_preview_live(self):
-        """Generates and updates the image preview in real-time."""
-        self.generated_image = self.create_image(for_preview=True)
-        if self.generated_image:
-            self.update_preview(self.generated_image)
+    def get_current_params(self):
+        return {
+            "text": self.text_input.toPlainText(),
+            "background_type": self.background_type_combo.currentData(),
+            "img_dims": self.image_dimensions_combo.currentData(),
+            "bg_color": self.background_color_combo.currentData(),
+            "loaded_image": self.loaded_image,
+            "font_family": self.font_family_combo.currentText(),
+            "font_style": self.font_style_combo.currentData() or "regular",
+            "text_color": self.text_color_combo.currentData(),
+            "fit_to_width": self.fit_to_width_checkbox.isChecked(),
+            "text_position": self.text_position_combo.currentData()
+        }
 
-    def create_image(self, for_preview=False):
-        text_to_draw = self.text_input.toPlainText()
-        if not text_to_draw and not for_preview:
-            QMessageBox.warning(self, tr("dialog_title_warning"), tr("msg_enter_text"))
-            return None
+    def _dispatch_thread(self, action="preview"):
+        if self.processing_thread.isRunning():
+            self.processing_thread.is_cancelled = True
+            self.processing_thread.wait()
 
-        background_type = self.background_type_combo.currentData()
-        img_dims = self.image_dimensions_combo.currentData()
-        base_image = None
+        params = self.get_current_params()
+        params["for_preview"] = (action == "preview")
+        params["processor"] = self
+        self.processing_thread.setup(params, action)
+        self.processing_thread.start()
 
-        if background_type == "existing":
-            if self.loaded_image:
-                base_image = self.loaded_image.copy().resize(img_dims, Image.Resampling.LANCZOS).convert("RGBA")
-            elif for_preview:
-                return Image.new("RGB", img_dims, color="gray")
-            else:
-                QMessageBox.warning(self, tr("dialog_title_warning"), tr("msg_load_image_first"))
-                return None
-        elif background_type == "solid":
-            bg_color = self.background_color_combo.currentData()
-            base_image = Image.new("RGB", img_dims, color=bg_color)
-        else: # Transparent
-            base_image = Image.new("RGBA", img_dims, (255, 255, 255, 0))
+    def on_image_processed(self, image, qimage, action):
+        if not image or not qimage:
+            return
 
-        if text_to_draw:
-            return self.add_text_to_image(base_image, text_to_draw)
-        return base_image
+        self.generated_image = image
+        pixmap = QPixmap.fromImage(qimage)
+        self.image_preview.setPixmap(pixmap.scaled(
+            self.image_preview.size(),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        ))
 
-    def generate_and_save_image(self):
-        self.generated_image = self.create_image()
-        if self.generated_image:
-            self.update_preview(self.generated_image)
+        if action == "save":
             self.save_image(self.generated_image)
-
-    def copy_image_to_clipboard(self):
-        self.generated_image = self.create_image()
-        if self.generated_image:
-            self.update_preview(self.generated_image)
-            qimage = self.pil_to_qimage(self.generated_image)
+        elif action == "copy":
             clipboard = QGuiApplication.clipboard()
             clipboard.setImage(qimage)
             if not self.generated_image.mode == 'RGBA' or self.background_type_combo.currentData() != "transparent":
                 QMessageBox.information(self, tr("dialog_title_success"), tr("msg_image_copied"))
 
-    def add_text_to_image(self, image, text):
-        font_family = self.font_family_combo.currentText()
-        font_style = self.font_style_combo.currentData() or "regular"
+    def update_preview_live(self):
+        """Generates and updates the image preview in real-time using a background thread."""
+        self._dispatch_thread("preview")
+
+    def generate_and_save_image(self):
+        if not self.text_input.toPlainText():
+            QMessageBox.warning(self, tr("dialog_title_warning"), tr("msg_enter_text"))
+            return
+        if self.background_type_combo.currentData() == "existing" and not self.loaded_image:
+            QMessageBox.warning(self, tr("dialog_title_warning"), tr("msg_load_image_first"))
+            return
+        self._dispatch_thread("save")
+
+    def copy_image_to_clipboard(self):
+        if not self.text_input.toPlainText():
+            QMessageBox.warning(self, tr("dialog_title_warning"), tr("msg_enter_text"))
+            return
+        if self.background_type_combo.currentData() == "existing" and not self.loaded_image:
+            QMessageBox.warning(self, tr("dialog_title_warning"), tr("msg_load_image_first"))
+            return
+        self._dispatch_thread("copy")
+
+    def create_image(self, text, background_type, img_dims, bg_color, loaded_image, font_family, font_style, text_color, fit_to_width, text_position, for_preview=False) -> Optional[Image.Image]:
+        if not text and not for_preview:
+            return None
+
+        base_image = None
+
+        if background_type == "existing":
+            if loaded_image:
+                base_image = loaded_image.copy().resize(img_dims, Image.Resampling.LANCZOS).convert("RGBA")
+            elif for_preview:
+                return Image.new("RGB", img_dims, color="gray")
+            else:
+                return None
+        elif background_type == "solid":
+            base_image = Image.new("RGB", img_dims, color=bg_color)
+        else: # Transparent
+            base_image = Image.new("RGBA", img_dims, (255, 255, 255, 0))
+
+        if text:
+            return self.add_text_to_image(base_image, text, font_family, font_style, text_color, fit_to_width, text_position)
+        return base_image
+
+    def add_text_to_image(self, image, text, font_family, font_style, text_color, fit_to_width, text_position):
         amiri_fallback_path = self.font_paths.get("regular")
 
         font_identifier = None
         if font_family == "Amiri":
             font_identifier = self.font_paths.get(font_style, amiri_fallback_path)
         else:
-            # Construct a font name with style for Pillow to resolve
             style_str = ""
             if font_style == "bold":
                 style_str = " Bold"
@@ -651,17 +727,14 @@ class ImageTextEditorApp(QMainWindow):
             font_identifier = f"{font_family}{style_str}"
 
         draw = ImageDraw.Draw(image)
-        text_color = self.text_color_combo.currentData()
 
         if not os.path.exists(font_identifier) and font_family == "Amiri":
-             QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_font_not_found", font_identifier))
              return image
 
-        if self.fit_to_width_checkbox.isChecked():
+        if fit_to_width:
             self.draw_text_fit_to_width(draw, text, font_identifier, text_color, image.size)
         else:
-            position = self.text_position_combo.currentData()
-            self.draw_text_at_position(draw, text, font_identifier, text_color, image.size, position)
+            self.draw_text_at_position(draw, text, font_identifier, text_color, image.size, text_position)
 
         return image
 
@@ -669,32 +742,33 @@ class ImageTextEditorApp(QMainWindow):
         img_width, img_height = image_size
         margin = int(img_width * 0.05)
         target_width = img_width - (2 * margin)
-        
-        font_size = 200
-        try:
-            font = ImageFont.truetype(font_identifier, font_size)
-        except IOError:
-            font = ImageFont.truetype(self.font_paths.get("regular"), font_size)
 
-        # Find the best font size
-        while font_size > 10:
+        low_size = 10
+        high_size = 1000
+        best_size = low_size
+
+        # Binary Search Optimization for Font Sizing
+        while low_size <= high_size:
+            mid_size = (low_size + high_size) // 2
             try:
-                font = ImageFont.truetype(font_identifier, font_size)
+                font = ImageFont.truetype(font_identifier, mid_size)
             except IOError:
-                font = ImageFont.truetype(self.font_paths.get("regular"), font_size)
+                font = ImageFont.truetype(self.font_paths.get("regular"), mid_size)
 
             wrapped_text = self.wrap_text(draw, text, font, target_width)
             reshaped_text = get_display(arabic_reshaper.reshape(wrapped_text))
             text_height = draw.multiline_textbbox((0,0), reshaped_text, font=font, align="center")[3]
+
             if text_height < img_height - (2 * margin):
-                break
-            font_size -= 5
-        
-        # Recalculate with final font size
+                best_size = mid_size
+                low_size = mid_size + 1
+            else:
+                high_size = mid_size - 1
+
         try:
-            font = ImageFont.truetype(font_identifier, font_size)
+            font = ImageFont.truetype(font_identifier, best_size)
         except IOError:
-            font = ImageFont.truetype(self.font_paths.get("regular"), font_size)
+            font = ImageFont.truetype(self.font_paths.get("regular"), best_size)
 
         wrapped_text = self.wrap_text(draw, text, font, target_width)
         reshaped_text = get_display(arabic_reshaper.reshape(wrapped_text))
@@ -713,7 +787,7 @@ class ImageTextEditorApp(QMainWindow):
             if not words:
                 wrapped_lines.append('')
                 continue
-            
+
             current_line = words[0]
             for word in words[1:]:
                 if draw.textlength(current_line + " " + word, font=font) <= max_width:
@@ -731,11 +805,11 @@ class ImageTextEditorApp(QMainWindow):
             font = ImageFont.truetype(font_identifier, font_size)
         except IOError:
             font = ImageFont.truetype(self.font_paths.get("regular"), font_size)
-        
+
         # Wrap text to fit image width
         wrapped_text = self.wrap_text(draw, text, font, image_size[0] - (2 * margin))
         reshaped_text = get_display(arabic_reshaper.reshape(wrapped_text))
-        
+
         # Determine horizontal and vertical alignment from position
         if "left" in position:
             h_align = "left"
@@ -770,34 +844,14 @@ class ImageTextEditorApp(QMainWindow):
         draw.multiline_text((x, y), reshaped_text, font=font, fill=text_color,
                             anchor=anchor, align=h_align, stroke_width=2, stroke_fill=stroke_color)
 
-    def update_preview(self, image):
-        qimage = self.pil_to_qimage(image)
-        pixmap = QPixmap.fromImage(qimage)
-        self.image_preview.setPixmap(pixmap.scaled(
-            self.image_preview.size(),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        ))
-
-    def pil_to_qimage(self, pil_img):
-        if pil_img.mode in ("RGB", "L"):
-            return QImage(pil_img.tobytes(), pil_img.width, pil_img.height, pil_img.width * 3, QImage.Format.Format_RGB888)
-        elif pil_img.mode == "RGBA":
-            return QImage(pil_img.tobytes(), pil_img.width, pil_img.height, QImage.Format.Format_RGBA8888)
-        
-        # Fallback for other modes
-        img_byte_array = io.BytesIO()
-        pil_img.save(img_byte_array, format="PNG")
-        qimage = QImage()
-        qimage.loadFromData(img_byte_array.getvalue())
-        return qimage
+    # old update_preview and pil_to_qimage have been replaced by Thread signal and on_image_processed.
 
     def save_image(self, image):
         save_path, selected_filter = QFileDialog.getSaveFileName(self, tr("generate_and_save_button"), "generated_image.png", tr("file_dialog_filter"))
         if save_path:
             try:
                 quality = self.image_quality_combo.currentData()
-                
+
                 # For JPG, ensure image is RGB and save with quality
                 if save_path.lower().endswith((".jpg", ".jpeg")):
                     if image.mode == 'RGBA':
@@ -812,7 +866,7 @@ class ImageTextEditorApp(QMainWindow):
                 QMessageBox.information(self, tr("dialog_title_success"), tr("msg_image_saved", save_path))
             except Exception as e:
                 QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_could_not_save_image", e))
-        
+
 def main():
     load_translations()
     app = QApplication(sys.argv)
