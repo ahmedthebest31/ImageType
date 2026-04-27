@@ -235,6 +235,10 @@ class ImageTextEditorApp(QMainWindow):
         self.load_themes_to_menu()
         self.update_preview_live()
 
+        from update_manager import UpdateManager
+        self.update_manager = UpdateManager(self, tr, load_config, save_config, APP_VERSION)
+        self.update_manager.check_for_updates(silent=True)
+
     def set_default_settings(self):
         self._set_combo_by_data(self.background_type_combo, "solid")
         self._set_combo_by_data(self.background_color_combo, "black")
@@ -279,7 +283,7 @@ class ImageTextEditorApp(QMainWindow):
         about_action = help_menu.addAction(tr("about_action"))
         about_action.triggered.connect(self.show_about_dialog)
         check_for_updates_action = help_menu.addAction(tr("check_for_updates_action"))
-        check_for_updates_action.triggered.connect(self.check_for_updates)
+        check_for_updates_action.triggered.connect(lambda: self.update_manager.check_for_updates(silent=False))
         help_menu.addSeparator()
         github_action = help_menu.addAction(tr("about_dialog_github"))
         github_action.triggered.connect(lambda: QDesktopServices.openUrl(QUrl(GITHUB_URL)))
@@ -628,48 +632,7 @@ class ImageTextEditorApp(QMainWindow):
         about_dialog = AboutDialog(self)
         about_dialog.exec()
 
-    def check_for_updates(self):
-        try:
-            response = requests.get(GITHUB_VERSION_URL, timeout=5)
-            response.raise_for_status()
-            latest_version_data = response.json()
-            latest_version = latest_version_data.get("version")
-
-            if latest_version and self.compare_versions(latest_version, APP_VERSION) > 0:
-                whats_new = latest_version_data.get("whats_new", {}).get(CURRENT_LANG, tr("msg_no_new_features"))
-                download_url = latest_version_data.get("direct_download_url", GITHUB_RELEASES_URL)
-                msg_box = QMessageBox(self)
-                msg_box.setWindowTitle(tr("dialog_title_update_available"))
-                info_text = tr("msg_update_info", APP_VERSION, latest_version)
-                full_text = f"{info_text}\n\n**{tr('whats_new_title')}:**\n{whats_new}"
-                msg_box.setText(full_text)
-                msg_box.setIcon(QMessageBox.Icon.Information)
-
-                download_button = msg_box.addButton(tr("button_direct_download"), QMessageBox.ButtonRole.ActionRole)
-                open_page_button = msg_box.addButton(tr("button_open_download_page"), QMessageBox.ButtonRole.ActionRole)
-                msg_box.addButton(QMessageBox.StandardButton.Ok)
-
-                msg_box.exec()
-
-                if msg_box.clickedButton() == download_button:
-                    QDesktopServices.openUrl(QUrl(download_url))
-                elif msg_box.clickedButton() == open_page_button:
-                    QDesktopServices.openUrl(QUrl(GITHUB_RELEASES_URL))
-            else:
-                QMessageBox.information(self, tr("dialog_title_no_update"), tr("msg_no_update"))
-        except requests.exceptions.RequestException as e:
-            QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_network_error", e))
-        except (json.JSONDecodeError, KeyError):
-            QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_update_parse_error"))
-
-    def compare_versions(self, v1, v2):
-        p1 = [int(x) for x in v1.split('.')]
-        p2 = [int(x) for x in v2.split('.')]
-        p1.extend([0] * (len(p2) - len(p1)))
-        p2.extend([0] * (len(p1) - len(p2)))
-        if p1 > p2: return 1
-        if p1 < p2: return -1
-        return 0
+    # Legacy update checking moved to update_manager.py
 
     def change_language(self, lang_code):
         global CURRENT_LANG
