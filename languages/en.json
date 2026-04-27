@@ -102,5 +102,7 @@
     "image_quality_high": "High",
     "image_quality_medium": "Medium",
     "image_quality_low": "Low",
-    "lang_name": "English"
+    "lang_name": "English",
+    "theme_dark_theme": "Dark Theme",
+    "theme_light_theme": "Light Theme"
 }

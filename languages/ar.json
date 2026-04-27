@@ -102,5 +102,7 @@
     "image_quality_high": "عالية",
     "image_quality_medium": "متوسطة",
     "image_quality_low": "منخفضة",
-    "lang_name": "العربية"
+    "lang_name": "العربية",
+    "theme_dark_theme": "الوضع الليلي",
+    "theme_light_theme": "الوضع النهاري"
 }
