@@ -104,5 +104,8 @@
     "image_quality_high": "Élevée",
     "image_quality_medium": "Moyenne",
     "image_quality_low": "Basse",
-    "lang_name": "Français"
+    "lang_name": "Français",
+    "theme_dark_theme": "Thème Sombre",
+    "theme_light_theme": "Thème Clair",
+    "enable_shadow_checkbox": "Activer l'ombre du texte"
 }

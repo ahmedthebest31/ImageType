@@ -104,5 +104,6 @@
     "image_quality_low": "منخفضة",
     "lang_name": "العربية",
     "theme_dark_theme": "الوضع الليلي",
-    "theme_light_theme": "الوضع النهاري"
+    "theme_light_theme": "الوضع النهاري",
+    "enable_shadow_checkbox": "تفعيل ظل النص"
 }

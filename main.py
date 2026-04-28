@@ -59,6 +59,10 @@ class PathProvider:
             
             if not target_folder.exists() and source_folder.exists():
                 shutil.copytree(source_folder, target_folder)
+            elif source_folder.exists() and folder in ["languages", "themes"]:
+                for file_path in source_folder.iterdir():
+                    if file_path.is_file():
+                        shutil.copy2(file_path, target_folder / file_path.name)
             elif not target_folder.exists():
                 target_folder.mkdir(parents=True, exist_ok=True)
 
@@ -296,6 +300,7 @@ class ImageTextEditorApp(QMainWindow):
         self.font_style_combo.setCurrentIndex(0)
         self.fit_to_width_checkbox.setChecked(False)
         self.image_dimensions_combo.setCurrentIndex(0)
+        self.enable_shadow_checkbox.setChecked(False)
         self.loaded_image = None
         self.current_image_path = ""
         
@@ -319,6 +324,7 @@ class ImageTextEditorApp(QMainWindow):
                 "text_color": self.text_color_combo.currentData(),
                 "image_dimensions": self.image_dimensions_combo.currentData(),
                 "fit_to_width": self.fit_to_width_checkbox.isChecked(),
+                "enable_shadow": self.enable_shadow_checkbox.isChecked(),
                 "text_position": self.text_position_combo.currentData(),
                 "image_path": self.current_image_path if self.loaded_image else ""
             }
@@ -369,6 +375,7 @@ class ImageTextEditorApp(QMainWindow):
             self._set_combo_by_data(self.background_color_combo, template_data.get("background_color"))
             self._set_combo_by_data(self.text_color_combo, template_data.get("text_color"))
             self._set_combo_by_data(self.image_dimensions_combo, template_data.get("image_dimensions"))
+            self.enable_shadow_checkbox.setChecked(template_data.get("enable_shadow", False))
             self._set_combo_by_data(self.text_position_combo, template_data.get("text_position"))
 
             image_path = template_data.get("image_path")
@@ -478,7 +485,11 @@ class ImageTextEditorApp(QMainWindow):
 
         # Row 3: Text Color and Position
         self.text_color_combo = QComboBox()
-        grid_layout.addWidget(self.text_color_combo, 3, 0)
+        self.enable_shadow_checkbox = QCheckBox()
+        row3_left_layout = QHBoxLayout()
+        row3_left_layout.addWidget(self.text_color_combo)
+        row3_left_layout.addWidget(self.enable_shadow_checkbox)
+        grid_layout.addLayout(row3_left_layout, 3, 0)
         self.text_position_combo = QComboBox()
         grid_layout.addWidget(self.text_position_combo, 3, 1)
 
@@ -524,6 +535,7 @@ class ImageTextEditorApp(QMainWindow):
         self.font_family_combo.currentTextChanged.connect(self.on_font_family_changed)
         self.font_style_combo.currentIndexChanged.connect(self.update_preview_live)
         self.text_color_combo.currentIndexChanged.connect(self.update_preview_live)
+        self.enable_shadow_checkbox.toggled.connect(self.update_preview_live)
         self.text_position_combo.currentIndexChanged.connect(self.update_preview_live)
         self.image_dimensions_combo.currentIndexChanged.connect(self.update_preview_live)
         self.background_type_combo.currentIndexChanged.connect(self.update_background_options)
@@ -538,6 +550,8 @@ class ImageTextEditorApp(QMainWindow):
         self.fit_to_width_checkbox.setText(tr("fit_to_width_checkbox"))
         self.font_size_label.setText(tr("font_size_label"))
         self.font_size_spinbox.setAccessibleName(tr("font_size_label"))
+        self.enable_shadow_checkbox.setText(tr("enable_shadow_checkbox"))
+        self.enable_shadow_checkbox.setAccessibleName(tr("enable_shadow_checkbox"))
 
         self._populate_font_style_combo()
         self._populate_font_family_combo()
@@ -583,6 +597,7 @@ class ImageTextEditorApp(QMainWindow):
 
     def _populate_font_style_combo(self):
         """Populates the font style dropdown with available Amiri styles."""
+        current_data = self.font_style_combo.currentData()
         self.font_style_combo.clear()
         self.font_style_combo.setAccessibleName(tr("font_style_combo_label"))
         styles = {
@@ -593,9 +608,11 @@ class ImageTextEditorApp(QMainWindow):
         }
         for data, key in styles.items():
             self.font_style_combo.addItem(tr(key), data)
+        self._set_combo_by_data(self.font_style_combo, current_data)
 
     def _populate_font_family_combo(self):
         """Populates the font family dropdown with system fonts."""
+        current_text = self.font_family_combo.currentText()
         self.font_family_combo.clear()
         self.font_family_combo.setAccessibleName(tr("font_family_combo_label"))
 
@@ -607,7 +624,10 @@ class ImageTextEditorApp(QMainWindow):
             if family != "Amiri":
                 self.font_family_combo.addItem(family)
 
-        self.font_family_combo.setCurrentText("Amiri")
+        if current_text:
+            self.font_family_combo.setCurrentText(current_text)
+        else:
+            self.font_family_combo.setCurrentText("Amiri")
 
     def on_font_family_changed(self, family=None):
         """Handles changes in the selected font family."""
@@ -617,10 +637,12 @@ class ImageTextEditorApp(QMainWindow):
 
 
     def _populate_combo(self, combo, label, items):
+        current_data = combo.currentData()
         combo.clear()
         combo.setAccessibleName(label)
         for data, key in items.items():
             combo.addItem(tr(key), data)
+        self._set_combo_by_data(combo, current_data)
 
     def toggle_position_combo(self, *args, **kwargs):
         is_checked = self.fit_to_width_checkbox.isChecked()
@@ -640,6 +662,7 @@ class ImageTextEditorApp(QMainWindow):
         config = load_config()
         config["language"] = lang_code
         save_config(config)
+        load_translations() # Reload translations from disk to ensure any new keys are available
         self.retranslate_ui()
         self.load_templates_to_menu()
         self.load_themes_to_menu()
@@ -675,6 +698,7 @@ class ImageTextEditorApp(QMainWindow):
             "font_style": self.font_style_combo.currentData() or "regular",
             "text_color": self.text_color_combo.currentData(),
             "fit_to_width": self.fit_to_width_checkbox.isChecked(),
+            "enable_shadow": self.enable_shadow_checkbox.isChecked(),
             "text_position": self.text_position_combo.currentData(),
             "font_size": self.font_size_spinbox.value() * 5
         }
@@ -732,7 +756,7 @@ class ImageTextEditorApp(QMainWindow):
             return
         self._dispatch_thread("copy")
 
-    def create_image(self, text, background_type, img_dims, bg_color, loaded_image, font_family, font_style, text_color, fit_to_width, text_position, font_size=120, for_preview=False) -> Optional[Image.Image]:
+    def create_image(self, text, background_type, img_dims, bg_color, loaded_image, font_family, font_style, text_color, fit_to_width, text_position, font_size=120, for_preview=False, enable_shadow=False) -> Optional[Image.Image]:
         if not text and not for_preview:
             return None
 
@@ -751,10 +775,10 @@ class ImageTextEditorApp(QMainWindow):
             base_image = Image.new("RGBA", img_dims, (255, 255, 255, 0))
 
         if text:
-            return self.add_text_to_image(base_image, text, font_family, font_style, text_color, fit_to_width, text_position, font_size)
+            return self.add_text_to_image(base_image, text, font_family, font_style, text_color, fit_to_width, text_position, font_size, enable_shadow)
         return base_image
 
-    def add_text_to_image(self, image, text, font_family, font_style, text_color, fit_to_width, text_position, font_size):
+    def add_text_to_image(self, image, text, font_family, font_style, text_color, fit_to_width, text_position, font_size, enable_shadow):
         amiri_fallback_path = self.font_paths.get("regular")
 
         font_identifier = None
@@ -800,13 +824,13 @@ class ImageTextEditorApp(QMainWindow):
             font_family = "Amiri"
 
         if fit_to_width:
-            self.draw_text_fit_to_width(draw, text, font_identifier, text_color, image.size)
+            self.draw_text_fit_to_width(draw, text, font_identifier, text_color, image.size, enable_shadow)
         else:
-            self.draw_text_at_position(draw, text, font_identifier, text_color, image.size, text_position, font_size)
+            self.draw_text_at_position(draw, text, font_identifier, text_color, image.size, text_position, font_size, enable_shadow)
 
         return image
 
-    def draw_text_fit_to_width(self, draw, text, font_identifier, text_color, image_size):
+    def draw_text_fit_to_width(self, draw, text, font_identifier, text_color, image_size, enable_shadow=False):
         img_width, img_height = image_size
         margin = int(img_width * 0.05)
         target_width = img_width - (2 * margin)
@@ -844,6 +868,12 @@ class ImageTextEditorApp(QMainWindow):
 
         y = (img_height - text_height) / 2
         stroke_color = "black" if text_color != "black" else "white"
+        
+        if enable_shadow:
+            shadow_color = (0, 0, 0, 128) if text_color in ["white", "yellow", "pink", "lightgreen", "lightblue"] else (255, 255, 255, 128)
+            draw.multiline_text((img_width/2 + 2, y + 2), reshaped_text, font=font, fill=shadow_color,
+                                anchor="ma", align="center")
+                                
         draw.multiline_text((img_width/2, y), reshaped_text, font=font, fill=text_color,
                             anchor="ma", align="center", stroke_width=2, stroke_fill=stroke_color)
 
@@ -866,7 +896,7 @@ class ImageTextEditorApp(QMainWindow):
             wrapped_lines.append(current_line)
         return "\n".join(wrapped_lines)
 
-    def draw_text_at_position(self, draw, text, font_identifier, text_color, image_size, position, font_size):
+    def draw_text_at_position(self, draw, text, font_identifier, text_color, image_size, position, font_size, enable_shadow=False):
         margin = 20
         try:
             font = ImageFont.truetype(font_identifier, font_size)
@@ -908,6 +938,12 @@ class ImageTextEditorApp(QMainWindow):
 
         anchor = anchor_h + anchor_v
         stroke_color = "black" if text_color != "black" else "white"
+        
+        if enable_shadow:
+            shadow_color = (0, 0, 0, 128) if text_color in ["white", "yellow", "pink", "lightgreen", "lightblue"] else (255, 255, 255, 128)
+            draw.multiline_text((x + 2, y + 2), reshaped_text, font=font, fill=shadow_color,
+                                anchor=anchor, align=h_align)
+                                
         draw.multiline_text((x, y), reshaped_text, font=font, fill=text_color,
                             anchor=anchor, align=h_align, stroke_width=2, stroke_fill=stroke_color)
 

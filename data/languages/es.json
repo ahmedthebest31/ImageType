@@ -104,5 +104,8 @@
     "image_quality_high": "Alta",
     "image_quality_medium": "Media",
     "image_quality_low": "Baja",
-    "lang_name": "Español"
+    "lang_name": "Español",
+    "theme_dark_theme": "Tema Oscuro",
+    "theme_light_theme": "Tema Claro",
+    "enable_shadow_checkbox": "Habilitar sombra de texto"
 }
