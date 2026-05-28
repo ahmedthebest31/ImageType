@@ -1,0 +1,140 @@
+name: Production Release Build
+
+on:
+  release:
+    types: [published]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.14"
+
+      - name: Sync Dependencies
+        run: uv sync
+
+      - name: Build Windows Executable
+        run: uv run pyinstaller --noconfirm --onefile --windowed --name="ImageType" --icon="assets/icon_64.ico" main.py
+
+      - name: Build Setup Installer (Inno Setup)
+        run: iscc imagetype_build.iss
+
+      - name: Assemble Windows Portable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "Portable\data"
+          Copy-Item -Path "dist\ImageType.exe" -Destination "Portable\"
+          Copy-Item -Path "languages", "themes", "fonts", "templates" -Destination "Portable\data\" -Recurse -ErrorAction SilentlyContinue
+          Compress-Archive -Path "Portable\*" -DestinationPath "ImageType-win-x64-Portable.zip" -Force
+
+      - name: Generate SHA256 Checksums
+        shell: pwsh
+        run: |
+          $setupHash = (Get-FileHash output\ImageType_Setup.exe -Algorithm SHA256).Hash.ToLower()
+          "$setupHash  ImageType_Setup.exe" | Out-File checksums-windows.txt -Encoding ascii
+          $portHash = (Get-FileHash ImageType-win-x64-Portable.zip -Algorithm SHA256).Hash.ToLower()
+          "$portHash  ImageType-win-x64-Portable.zip" | Out-File checksums-windows.txt -Encoding ascii -Append
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            output/ImageType_Setup.exe
+            ImageType-win-x64-Portable.zip
+            checksums-windows.txt
+
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.14"
+
+      - name: Install X11 Dummy (For PySide6 Headless Build)
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Sync Dependencies
+        run: uv sync
+
+      - name: Build Linux Executable
+        run: xvfb-run uv run pyinstaller --noconfirm --onefile --windowed --name="ImageType" --icon="assets/icon_64.png" main.py
+
+      - name: Assemble Linux Portable
+        shell: bash
+        run: |
+          mkdir -p Portable/data
+          cp dist/ImageType Portable/
+          cp -r languages themes fonts templates Portable/data/
+          cd Portable
+          zip -r ../ImageType-linux-x64.zip .
+
+      - name: Generate SHA256 Checksum
+        shell: bash
+        run: |
+          sha256sum ImageType-linux-x64.zip > checksums-linux.txt
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ImageType-linux-x64.zip
+            checksums-linux.txt
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.14"
+
+      - name: Sync Dependencies
+        run: uv sync
+
+      - name: Build macOS App Bundle
+        run: uv run pyinstaller --noconfirm --onefile --windowed --name="ImageType" --icon="assets/icon_64.png" main.py
+
+      - name: Assemble macOS Portable (Self-Contained App)
+        shell: bash
+        run: |
+          mkdir -p dist/ImageType.app/Contents/MacOS/data
+          cp -r languages themes fonts templates dist/ImageType.app/Contents/MacOS/data/
+          cd dist
+          zip -r ../ImageType-mac-x64.zip ImageType.app
+
+      - name: Generate SHA256 Checksum
+        shell: bash
+        run: |
+          shasum -a 256 ImageType-mac-x64.zip > checksums-macos.txt
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ImageType-mac-x64.zip
+            checksums-macos.txt
