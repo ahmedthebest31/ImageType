@@ -1,76 +1,83 @@
-# ImageType
+# 🖼️ ImageType
 
-Easy image editing for everyone: ImageType empowers visually impaired users to effortlessly add custom text to images for social media, greeting cards, and more, all with full screen reader compatibility.
-
----
-
-## Overview
-
-**ImageType** is a desktop application designed to empower visually impaired users to easily add custom text to images or create new images with text overlays. It focuses heavily on **accessibility** and provides a straightforward interface compatible with screen readers. Whether you want to prepare text for social media posts, YouTube Shorts, or any other visual content, ImageType makes it simple to style and position your words.
+Easy image editing for everyone: ImageType empowers visually impaired users to effortlessly add custom text to images for social media, greeting cards, and more, all with full screen reader compatibility. 🌟
 
 ---
 
-## Features
+## 🧐 Overview
 
-- **Accessible Interface:** Built with PySide6 for excellent compatibility with screen readers.
-- **Multilingual Text Input:** Supports text input in any language, including full support for **Arabic (Right-to-Left)** and mixed Arabic/English text.
-- **Customizable Text:**
-  - **Dynamic Font Sizing:** Text automatically scales to fill the image width, ensuring high visibility.
-  - **Positioning:** Choose from predefined text positions (Top Left, Center, Bottom Right, etc.).
-  - **Styling:** Apply bold or italic formatting to your text.
-  - **Line Breaks & Spacing:** Respects all your typed line breaks and multiple spaces for precise formatting.
-- **Flexible Backgrounds:**
-  - Use an **existing image** as a background.
-  - Generate a new image with a **solid color background**.
-  - Create an image with a **transparent background**.
-- **Image Dimension Control:** Select common aspect ratios for output images (e.g., Standard 16:9, Square 1:1, Portrait 9:16 for YouTube Shorts/Reels).
-- **Enhanced Export Options:**
-  - Save the final image to a file with adjustable quality (for JPG).
-  - **Copy the generated image directly to your clipboard** for quick pasting into other applications.
-- **Preset Management (Coming Soon!):** Save and load your favorite text and image settings for quick reuse.
-- **Font Selection (Coming Soon!):** Choose from a list of available fonts within the application.
-- **Templates (Coming Soon!):** Utilize pre-designed templates to quickly create visually appealing images.
+**ImageType** is a professional desktop application designed to empower visually impaired and blind users to easily add custom text to images or create new graphics from scratch. 🚀 It focuses heavily on **strict accessibility standards** and provides a straightforward, high-contrast interface fully compatible with screen readers. 🎧 Whether you want to prepare text for social media posts, YouTube Shorts, or any other visual content, ImageType makes styling and positioning your words seamless.
 
 ---
 
-## Useful Applications & Ideas
+## ✨ Core Features
 
-ImageType is incredibly versatile! Here are some creative ways you can use it:
-
-- **Social Media Greetings & Announcements:** Easily design personalized **greeting cards** or **announcement graphics** for holidays, birthdays, or special events to share on platforms like Facebook, Instagram, or X (Twitter).
-- **YouTube Thumbnails & Overlays:** Create eye-catching **thumbnails** for your YouTube videos or text overlays for your Shorts and Reels.
-- **Educational Content:** Generate images with text for **presentations, tutorials, or study notes**, making information more visually accessible.
-- **Quote Graphics:** Turn your favorite quotes or inspirational messages into shareable **image quotes** for social media or personal use.
-- **Quick Memos & Reminders:** Produce simple image-based **memos or reminders** with key information for quick visual reference.
-- **Product Promotions (for entrepreneurs):** Craft simple yet effective promotional images for your products or services with custom text.
+- 📱 **Accessible Interface:** Built with PySide6 for absolute native compatibility with modern screen readers and accessibility tools.
+- 🌍 **Multilingual Text Input:** Full support for typing in any language, with seamless rendering of **Right-to-Left (RTL) Arabic text** and mixed Arabic/English prose.
+- 🔠 **Smart Font Fallback Engine:** Automatically detects if a system font lacks Arabic support and dynamically falls back to the embedded **Amiri** font to prevent text corruption or broken characters.
+- ⚡ **Binary Search Sizing Optimization:** Implements an advanced binary search algorithm to automatically and instantly calculate the maximum perfect font size to fit your text within image boundaries when the **"Fit to Width"** checkbox is enabled.
+- 🎯 **Precise Text Positioning:** Predefined layout anchoring grid (Top Left, Center, Bottom Right, etc.) that deactivates automatically when layout wrapping takes priority.
+- 🎨 **Text Shadows & Outlines:** Optional drop shadows for high-contrast visibility against complex backgrounds, with automatic adaptive text outlining (stroke width) based on font color.
+- 🖼️ **Flexible Background Systems:** Support for loading existing local images, generating solid color canvases, or exporting transparent PNG overlays.
+- 📐 **Standard Aspect Ratios:** Quick presets for major digital formats including Standard (16:9), Square (1:1), and Portrait (9:16) for YouTube Shorts and Instagram Reels.
+- 📋 **Direct Clipboard Export:** Features a one-click **"Copy to Clipboard"** button to paste your generated graphics straight into messaging or editing apps without saving files.
+- 💾 **Local Profile & Preset Saving:** Save all your text styles, font configurations, colors, and canvas settings into custom template profiles for instant reuse later.
+- 🎨 **Dynamic QSS Themes:** Full configuration for multiple application themes (like Dark Theme) that update the UI look on the fly without restarting.
+- 🔄 **Embedded Automated Update Manager:** Built-in asynchronous network checker that checks GitHub releases to alert, download, and launch software installers safely.
 
 ---
 
 ## ⬇️ Download & Run
 
-You can download the latest executable file (`.exe` for Windows) directly from the **Releases** section of this GitHub repository.
+Go to the **[📥 Latest Releases Page](https://github.com/ahmedthebest31/ImageType/releases/latest)** to download the version that suits your needs:
 
-1.  Go to the **[Releases page](https://github.com/ahmedthebest31/ImageType/releases/)**.
-2.  Download the latest `ImageType-vX.Y.Z.exe` file.
-3.  Run the downloaded executable. No installation is required; it's a standalone application.
+### 1. ⚙️ Installed Version (Recommended)
+- 💾 Download the official Windows `ImageType_Setup.exe` installer.
+- 🛠️ Run the installer to register the program safely on your system environment.
+- 📂 In this mode, all your editable assets (languages, templates, fonts, themes) are stored and safely managed under your user documents folder: `Documents/Ahmed Samy/ImageType/`.
 
----
-
-## Contributions & Suggestions
-
-Your feedback and suggestions are invaluable! If you have ideas for new features, encounter any bugs, or wish to contribute to the project, please feel free to:
-
-- **Open an Issue:** Describe any bugs you find or suggest new features.
-- **Open a Pull Request:** If you've made improvements or added new features yourself.
+### 2. 🧳 Portable Version
+- 📦 Download the portable compressed archive file.
+- 📂 Extract the directory anywhere on your computer or USB drive.
+- 📁 To use your custom assets in portable mode, ensure your asset folders are placed inside a folder named `data` right next to the main `ImageType.exe` file.
 
 ---
 
-## License
+## 🛠️ For Developers (Local Setup)
+
+This project uses **uv** for blazing-fast, reliable Python dependency and virtual environment management. ⚡
+
+1. 👥 Clone the repository: `git clone https://github.com/ahmedthebest31/ImageType.git`
+2. 📂 Navigate to the project directory: `cd ImageType`
+3. 🔄 Install dependencies and sync the virtual environment: `uv sync`
+4. 🚀 Run the application in development mode: `uv run main.py`
+5. 🏗️ Build the standalone production executable using PyInstaller: `uv run pyinstaller --noconfirm --onefile --windowed --name="ImageType" --icon="assets/icon_64.ico" main.py`
+
+---
+
+## 💡 Creative Applications & Ideas
+
+- ✉️ **Social Media Greetings:** Easily design personalized holiday greeting cards or event announcements for platforms like Facebook and X.
+- 🎬 **Video Thumbnails & Overlays:** Produce rapid thumbnail text overlays or descriptive frames for YouTube Shorts, TikToks, and Instagram Reels.
+- 📚 **Educational Graphics:** Generate clear images with text for slide presentations, tutorials, or study notes to make information visually scannable.
+- 💬 **Inspirational Quote Graphics:** Instantly turn your favorite written quotes or text snippets into beautifully styled shareable graphics.
+
+---
+
+## ⚖️ License
 
 This project is licensed under the **GNU General Public License v3.0 (GPLv3)**. See the [LICENSE](LICENSE) file for more details.
 
 ---
 
-## Contact
+## 🤝 Contributions & Suggestions
 
-For any questions or support, feel free to open an issue on GitHub.
+Your feedback is highly valued! If you have ideas for new layout features, encounter bugs, or want to contribute code:
+- 🐛 **Open an Issue:** Describe any bugs you find or suggest new feature requests.
+- 🔧 **Open a Pull Request:** Submit improvements or new UI translation blocks directly to the project.
+
+---
+
+## 📞 Contact
+
+For any questions, business tracking, or technical support, feel free to open an official issue directly on GitHub.

@@ -4,7 +4,7 @@ import requests
 import tempfile
 import subprocess
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Dict, Any
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -28,11 +28,11 @@ class VersionChecker(QThread):
     no_update = Signal()
     error = Signal(str)
 
-    def __init__(self, current_version: str, parent=None):
+    def __init__(self, current_version: str, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
         self.current_version = current_version
 
-    def run(self):
+    def run(self) -> None:
         try:
             response = requests.get(GITHUB_VERSION_URL, timeout=5)
             response.raise_for_status()
@@ -53,11 +53,11 @@ class Downloader(QThread):
     finished = Signal(str)
     error = Signal(str)
 
-    def __init__(self, url: str, parent=None):
+    def __init__(self, url: str, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
         self.url = url
 
-    def run(self):
+    def run(self) -> None:
         try:
             temp_dir = Path(tempfile.gettempdir())
             filename = self.url.split('/')[-1] or "update.exe"
@@ -82,7 +82,7 @@ class Downloader(QThread):
             self.error.emit(str(e))
 
 class UpdateDialog(QDialog):
-    def __init__(self, new_version: str, whats_new: str, tr: Callable, parent=None):
+    def __init__(self, new_version: str, whats_new: str, tr: Callable, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.tr_func = tr
         self.setWindowTitle(tr("dialog_title_update_available"))
@@ -129,34 +129,34 @@ class UpdateDialog(QDialog):
         self.btn_remind.clicked.connect(self.reject_remind)
         self.btn_update.clicked.connect(self.accept_update)
 
-        self.action = "remind"
+        self.action: str = "remind"
 
-    def reject_skip(self):
+    def reject_skip(self) -> None:
         self.action = "skip"
         self.reject()
 
-    def reject_remind(self):
+    def reject_remind(self) -> None:
         self.action = "remind"
         self.reject()
 
-    def accept_update(self):
+    def accept_update(self) -> None:
         self.action = "update"
         self.accept()
 
 class UpdateManager(QObject):
-    def __init__(self, parent_widget, tr_func: Callable, load_config: Callable, save_config: Callable, current_version: str):
+    def __init__(self, parent_widget: QWidget, tr_func: Callable, load_config: Callable, save_config: Callable, current_version: str) -> None:
         super().__init__(parent_widget)
         self.parent_widget = parent_widget
         self.tr = tr_func
         self.load_config = load_config
         self.save_config = save_config
         self.current_version = current_version
-        self.silent = False
-        self.progress_dialog = None
-        self.checker_thread = None
-        self.downloader_thread = None
+        self.silent: bool = False
+        self.progress_dialog: Optional[QProgressDialog] = None
+        self.checker_thread: Optional[VersionChecker] = None
+        self.downloader_thread: Optional[Downloader] = None
 
-    def check_for_updates(self, silent: bool = True):
+    def check_for_updates(self, silent: bool = True) -> None:
         self.silent = silent
 
         if not silent:
@@ -176,12 +176,12 @@ class UpdateManager(QObject):
         self.checker_thread.finished.connect(self._cleanup_checker)
         self.checker_thread.start()
 
-    def _cleanup_checker(self):
+    def _cleanup_checker(self) -> None:
         if self.progress_dialog:
             self.progress_dialog.close()
             self.progress_dialog = None
 
-    def _on_update_available(self, data: dict):
+    def _on_update_available(self, data: Dict[str, Any]) -> None:
         new_version = data.get("version", "")
         
         if self.silent:
@@ -207,15 +207,15 @@ class UpdateManager(QObject):
                 config["skipped_version"] = new_version
                 self.save_config(config)
 
-    def _on_no_update(self):
+    def _on_no_update(self) -> None:
         if not self.silent:
             QMessageBox.information(self.parent_widget, self.tr("dialog_title_no_update"), self.tr("msg_no_update"))
 
-    def _on_error(self, error_msg: str):
+    def _on_error(self, error_msg: str) -> None:
         if not self.silent:
             QMessageBox.critical(self.parent_widget, self.tr("dialog_title_error"), self.tr("msg_network_error", error_msg))
 
-    def _start_download(self, url: str):
+    def _start_download(self, url: str) -> None:
         if not url:
             QMessageBox.critical(self.parent_widget, self.tr("dialog_title_error"), "Download URL is empty.")
             return
@@ -235,7 +235,7 @@ class UpdateManager(QObject):
         self.downloader_thread.start()
         self.progress_dialog.show()
 
-    def _on_download_finished(self, file_path: str):
+    def _on_download_finished(self, file_path: str) -> None:
         if self.progress_dialog:
             self.progress_dialog.close()
 
@@ -245,7 +245,7 @@ class UpdateManager(QObject):
         except Exception as e:
             QMessageBox.critical(self.parent_widget, self.tr("dialog_title_error"), f"Failed to launch installer:\n{e}")
 
-    def _on_download_error(self, error_msg: str):
+    def _on_download_error(self, error_msg: str) -> None:
         if self.progress_dialog:
             self.progress_dialog.close()
         

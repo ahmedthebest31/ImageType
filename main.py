@@ -1,20 +1,17 @@
 import sys
-import requests
 import json
-import os
 import shutil
 from pathlib import Path
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QGridLayout, QLabel,
     QPushButton, QPlainTextEdit, QComboBox, QFileDialog, QMessageBox, QCheckBox,
-    QDialog, QVBoxLayout, QHBoxLayout, QMenuBar, QSizePolicy, QMenu, QInputDialog, QSpinBox
+    QDialog, QVBoxLayout, QHBoxLayout, QMenu, QInputDialog, QSpinBox
 )
-from PySide6.QtGui import QPixmap, QImage, QKeyEvent, QGuiApplication, QDesktopServices, QAction, QActionGroup, QFontDatabase
-from PySide6.QtCore import Qt, QUrl, QSize, QThread, Signal
+from PySide6.QtGui import QPixmap, QImage, QKeyEvent, QGuiApplication, QDesktopServices, QAction, QActionGroup, QFontDatabase, QIcon
+from PySide6.QtCore import Qt, QUrl, QThread, Signal, QObject
 from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageQt import ImageQt
-from typing import Optional, Dict, Any
-import io
+from typing import Optional, Dict, Any, Tuple
 import arabic_reshaper
 from bidi.algorithm import get_display
 
@@ -26,62 +23,73 @@ LINKEDIN_URL = "https://www.linkedin.com/in/ahmedthebest"
 
 class PathProvider:
     @staticmethod
-    def get_app_dir() -> Path:
-        if getattr(sys, 'frozen', False):
+    def _is_frozen() -> bool:
+        return getattr(sys, 'frozen', False)
+
+    @classmethod
+    def _get_app_dir(cls) -> Path:
+        if cls._is_frozen():
             return Path(sys.executable).parent
-        else:
-            return Path(__file__).resolve().parent
-
-    @staticmethod
-    def is_installed() -> bool:
-        app_dir = str(PathProvider.get_app_dir()).replace("\\", "/").lower()
-        system_folders = ["program files", "appdata", "/usr/bin", "/opt", "/applications"]
-        return any(folder in app_dir for folder in system_folders)
-
-    @staticmethod
-    def get_user_data_dir() -> Path:
-        if PathProvider.is_installed():
-            return Path.home() / "Documents" / "AhmedSamy.imageType"
-        else:
-            return PathProvider.get_app_dir() / "data"
+        return Path(__file__).resolve().parent
 
     @classmethod
-    def setup_data_dir(cls):
-        base_dir = cls.get_user_data_dir()
-        base_dir.mkdir(parents=True, exist_ok=True)
-        
+    def _get_base_dir(cls) -> Path:
+        app_dir = cls._get_app_dir()
+        if cls._is_frozen():
+            if (app_dir / "installed.tag").is_file():
+                return Path.home() / "Documents" / "Ahmed Samy" / "ImageType"
+            return app_dir / "data"
+        return app_dir
+
+    @classmethod
+    def get_languages_dir(cls) -> Path:
+        return cls._get_base_dir() / "languages"
+
+    @classmethod
+    def get_themes_dir(cls) -> Path:
+        return cls._get_base_dir() / "themes"
+
+    @classmethod
+    def get_fonts_dir(cls) -> Path:
+        return cls._get_base_dir() / "fonts"
+
+    @classmethod
+    def get_templates_dir(cls) -> Path:
+        return cls._get_base_dir() / "templates"
+
+    @classmethod
+    def get_config_path(cls) -> Path:
+        return cls._get_base_dir() / "config.json"
+
+    @classmethod
+    def setup_data_dir(cls) -> None:
+        base_dir = cls._get_base_dir()
+        app_dir = cls._get_app_dir()
         folders = ["themes", "languages", "fonts", "templates"]
-        app_dir = cls.get_app_dir()
-
         for folder in folders:
-            target_folder = base_dir / folder
-            source_folder = app_dir / folder
-            
-            if not target_folder.exists() and source_folder.exists():
-                shutil.copytree(source_folder, target_folder)
-            elif source_folder.exists() and folder in ["languages", "themes"]:
-                for file_path in source_folder.iterdir():
+            target = base_dir / folder
+            source = app_dir / folder
+            if not target.exists() and source.exists():
+                shutil.copytree(source, target)
+            elif source.exists() and folder in ("languages", "themes"):
+                target.mkdir(parents=True, exist_ok=True)
+                for file_path in source.iterdir():
                     if file_path.is_file():
-                        shutil.copy2(file_path, target_folder / file_path.name)
-            elif not target_folder.exists():
-                target_folder.mkdir(parents=True, exist_ok=True)
-
-    @classmethod
-    def get_path(cls, path_name: str) -> str:
-        return str(cls.get_user_data_dir() / path_name)
+                        shutil.copy2(file_path, target / file_path.name)
+            elif not target.exists():
+                target.mkdir(parents=True, exist_ok=True)
 
 PathProvider.setup_data_dir()
 
-CONFIG_FILE = PathProvider.get_path("config.json")
-LANGUAGES_DIR = PathProvider.get_path("languages")
-FONTS_DIR = PathProvider.get_path("fonts")
-TEMPLATES_DIR = PathProvider.get_path("templates")
-THEMES_DIR = PathProvider.get_path("themes")
+CONFIG_FILE = str(PathProvider.get_config_path())
+LANGUAGES_DIR = str(PathProvider.get_languages_dir())
+FONTS_DIR = str(PathProvider.get_fonts_dir())
+TEMPLATES_DIR = str(PathProvider.get_templates_dir())
+THEMES_DIR = str(PathProvider.get_themes_dir())
 TRANSLATIONS = {}
 CURRENT_LANG = "en"
 
-def load_config():
-    """Loads configuration from file."""
+def load_config() -> Dict[str, Any]:
     config_path = Path(CONFIG_FILE)
     if config_path.exists():
         with open(config_path, "r", encoding="utf-8") as f:
@@ -91,13 +99,11 @@ def load_config():
             return config
     return {"language": "en", "theme": "dark_theme.qss"}
 
-def save_config(config):
-    """Saves configuration to file."""
+def save_config(config: Dict[str, Any]) -> None:
     with open(Path(CONFIG_FILE), "w", encoding="utf-8") as f:
         json.dump(config, f, indent=4)
 
-def load_translations():
-    """Loads all translation files from the languages directory."""
+def load_translations() -> None:
     global TRANSLATIONS
     lang_dir = Path(LANGUAGES_DIR)
     if not lang_dir.exists():
@@ -109,15 +115,14 @@ def load_translations():
             with open(filepath, "r", encoding="utf-8") as f:
                 TRANSLATIONS[lang_code] = json.load(f)
 
-def tr(key, *args):
-    """Translates a given key based on the current language."""
+def tr(key: str, *args: Any) -> str:
     text = TRANSLATIONS.get(CURRENT_LANG, {}).get(key)
     if text is None:
         text = TRANSLATIONS.get("en", {}).get(key, key)
     return text.format(*args)
 
 class AboutDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(tr("dialog_title_about"))
         self.setFixedSize(400, 250)
@@ -161,7 +166,7 @@ class AboutDialog(QDialog):
         layout.addLayout(button_layout)
 
 class AccessiblePlainTextEdit(QPlainTextEdit):
-    def keyPressEvent(self, event: QKeyEvent):
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Backtab:
             self.parentWidget().focusPreviousChild()
             event.accept()
@@ -174,18 +179,18 @@ class AccessiblePlainTextEdit(QPlainTextEdit):
 class ImageProcessorThread(QThread):
     finished_image = Signal(object, object, str)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
-        self.params = {}
-        self.action = "preview"
-        self.is_cancelled = False
+        self.params: Dict[str, Any] = {}
+        self.action: str = "preview"
+        self.is_cancelled: bool = False
 
-    def setup(self, params: Dict[str, Any], action: str = "preview"):
+    def setup(self, params: Dict[str, Any], action: str = "preview") -> None:
         self.params = params
         self.action = action
         self.is_cancelled = False
 
-    def run(self):
+    def run(self) -> None:
         processor = self.params.pop("processor", None)
         if not processor:
             return
@@ -195,9 +200,8 @@ class ImageProcessorThread(QThread):
             if self.is_cancelled:
                 return
 
-            qimage = None
+            qimage: Optional[QImage] = None
             if image:
-                # Decoupled thread-safe deep copy using ImageQt
                 qim = ImageQt(image)
                 qimage = qim.copy()
             
@@ -207,13 +211,13 @@ class ImageProcessorThread(QThread):
             print(f"Error in image processing thread: {e}")
 
 class ImageTextEditorApp(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.loaded_image = None
-        self.current_image_path = ""
-        self.generated_image = None
+        self.loaded_image: Optional[Image.Image] = None
+        self.current_image_path: str = ""
+        self.generated_image: Optional[Image.Image] = None
 
-        self.font_paths = {
+        self.font_paths: Dict[str, str] = {
             "regular": str(Path(FONTS_DIR) / "Amiri" / "Amiri-Regular.ttf"),
             "bold": str(Path(FONTS_DIR) / "Amiri" / "Amiri-Bold.ttf"),
             "italic": str(Path(FONTS_DIR) / "Amiri" / "Amiri-Italic.ttf"),
@@ -230,6 +234,9 @@ class ImageTextEditorApp(QMainWindow):
         self.apply_theme(config.get("theme", "dark_theme.qss"))
 
         self.setWindowTitle(tr("app_title"))
+        icon_path = Path(__file__).resolve().parent / "assets" / "icon_64.png"
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
         self.resize(1000, 700)
         self.setup_ui()
         self.retranslate_ui()
@@ -243,7 +250,7 @@ class ImageTextEditorApp(QMainWindow):
         self.update_manager = UpdateManager(self, tr, load_config, save_config, APP_VERSION)
         self.update_manager.check_for_updates(silent=True)
 
-    def set_default_settings(self):
+    def set_default_settings(self) -> None:
         self._set_combo_by_data(self.background_type_combo, "solid")
         self._set_combo_by_data(self.background_color_combo, "black")
         self._set_combo_by_data(self.text_color_combo, "white")
@@ -251,7 +258,7 @@ class ImageTextEditorApp(QMainWindow):
         self.update_background_options()
         self.toggle_position_combo()
 
-    def setup_menubar(self):
+    def setup_menubar(self) -> None:
         menubar = self.menuBar()
         menubar.clear()
 
@@ -294,8 +301,7 @@ class ImageTextEditorApp(QMainWindow):
         linkedin_action = help_menu.addAction(tr("about_dialog_linkedin"))
         linkedin_action.triggered.connect(lambda: QDesktopServices.openUrl(QUrl(LINKEDIN_URL)))
 
-    def new_template(self):
-        """Resets all UI elements to their default state."""
+    def new_template(self) -> None:
         self.text_input.setPlainText("")
         self.font_style_combo.setCurrentIndex(0)
         self.fit_to_width_checkbox.setChecked(False)
@@ -309,8 +315,7 @@ class ImageTextEditorApp(QMainWindow):
         
         QMessageBox.information(self, tr("dialog_title_success"), tr("msg_template_reset"))
 
-    def save_template(self):
-        """Saves current settings as a new template file."""
+    def save_template(self) -> None:
         name, ok = QInputDialog.getText(self, tr("dialog_title_save_template"), tr("msg_enter_template_name"))
         if ok and name:
             file_name = f"{name.replace(' ', '_').lower()}.json"
@@ -337,8 +342,7 @@ class ImageTextEditorApp(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_template_save_error", e))
 
-    def load_templates_to_menu(self):
-        """Loads available templates and adds them to the Templates menu."""
+    def load_templates_to_menu(self) -> None:
         self.templates_menu.clear()
 
         try:
@@ -364,8 +368,7 @@ class ImageTextEditorApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_template_load_error", e))
 
-    def apply_template(self, template_data):
-        """Applies a selected template's settings to the UI."""
+    def apply_template(self, template_data: Dict[str, Any]) -> None:
         try:
             self.text_input.setPlainText(template_data.get("sample_text", ""))
 
@@ -393,15 +396,14 @@ class ImageTextEditorApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_apply_template_error", e))
 
-    def _set_combo_by_data(self, combo, data):
-        """Helper to set a QComboBox's current index by its item data."""
-        if data is None: return
+    def _set_combo_by_data(self, combo: QComboBox, data: Any) -> None:
+        if data is None:
+            return
         index = combo.findData(data)
         if index != -1:
             combo.setCurrentIndex(index)
 
-    def load_themes_to_menu(self):
-        """Loads available themes and adds them to the Themes menu."""
+    def load_themes_to_menu(self) -> None:
         self.themes_menu.clear()
         config = load_config()
         current_theme = config.get("theme", "dark_theme.qss")
@@ -431,15 +433,13 @@ class ImageTextEditorApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, tr("dialog_title_error"), f"Could not load themes: {e}")
 
-    def change_theme(self, theme_file):
-        """Applies the selected theme and saves it to the config."""
+    def change_theme(self, theme_file: str) -> None:
         self.apply_theme(theme_file)
         config = load_config()
         config["theme"] = theme_file
         save_config(config)
 
-    def apply_theme(self, theme_file):
-        """Reads a QSS file and applies it to the application."""
+    def apply_theme(self, theme_file: str) -> None:
         theme_path = Path(THEMES_DIR) / theme_file
         try:
             with open(theme_path, "r", encoding="utf-8") as f:
@@ -451,7 +451,7 @@ class ImageTextEditorApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, tr("dialog_title_error"), f"Could not apply theme: {e}")
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         self.setup_menubar()
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -527,7 +527,7 @@ class ImageTextEditorApp(QMainWindow):
         grid_layout.setColumnStretch(1, 1)
         grid_layout.setColumnStretch(2, 2)
 
-    def connect_signals(self):
+    def connect_signals(self) -> None:
         self.text_input.textChanged.connect(self.update_preview_live)
         self.load_image_button.clicked.connect(self.load_image)
         self.fit_to_width_checkbox.stateChanged.connect(self.toggle_position_combo)
@@ -543,7 +543,7 @@ class ImageTextEditorApp(QMainWindow):
         self.copy_button.clicked.connect(self.copy_image_to_clipboard)
         self.generate_image_button.clicked.connect(self.generate_and_save_image)
 
-    def retranslate_ui(self):
+    def retranslate_ui(self) -> None:
         self.setWindowTitle(tr("app_title"))
         self.text_input.setPlaceholderText(tr("text_input_placeholder"))
         self.load_image_button.setText(tr("load_image_button"))
@@ -595,8 +595,7 @@ class ImageTextEditorApp(QMainWindow):
         self.update_preview_live()
         self.on_font_family_changed()
 
-    def _populate_font_style_combo(self):
-        """Populates the font style dropdown with available Amiri styles."""
+    def _populate_font_style_combo(self) -> None:
         current_data = self.font_style_combo.currentData()
         self.font_style_combo.clear()
         self.font_style_combo.setAccessibleName(tr("font_style_combo_label"))
@@ -610,8 +609,7 @@ class ImageTextEditorApp(QMainWindow):
             self.font_style_combo.addItem(tr(key), data)
         self._set_combo_by_data(self.font_style_combo, current_data)
 
-    def _populate_font_family_combo(self):
-        """Populates the font family dropdown with system fonts."""
+    def _populate_font_family_combo(self) -> None:
         current_text = self.font_family_combo.currentText()
         self.font_family_combo.clear()
         self.font_family_combo.setAccessibleName(tr("font_family_combo_label"))
@@ -629,14 +627,10 @@ class ImageTextEditorApp(QMainWindow):
         else:
             self.font_family_combo.setCurrentText("Amiri")
 
-    def on_font_family_changed(self, family=None):
-        """Handles changes in the selected font family."""
-        # Font style (bold, italic) will be applied to system fonts where possible.
-        # The preview is updated to reflect the change.
+    def on_font_family_changed(self, family: Optional[str] = None) -> None:
         self.update_preview_live()
 
-
-    def _populate_combo(self, combo, label, items):
+    def _populate_combo(self, combo: QComboBox, label: str, items: Dict[Any, str]) -> None:
         current_data = combo.currentData()
         combo.clear()
         combo.setAccessibleName(label)
@@ -644,30 +638,28 @@ class ImageTextEditorApp(QMainWindow):
             combo.addItem(tr(key), data)
         self._set_combo_by_data(combo, current_data)
 
-    def toggle_position_combo(self, *args, **kwargs):
+    def toggle_position_combo(self, *args: Any, **kwargs: Any) -> None:
         is_checked = self.fit_to_width_checkbox.isChecked()
         self.text_position_combo.setEnabled(not is_checked)
         self.font_size_spinbox.setEnabled(not is_checked)
         self.update_preview_live()
 
-    def show_about_dialog(self):
+    def show_about_dialog(self) -> None:
         about_dialog = AboutDialog(self)
         about_dialog.exec()
 
-    # Legacy update checking moved to update_manager.py
-
-    def change_language(self, lang_code):
+    def change_language(self, lang_code: str) -> None:
         global CURRENT_LANG
         CURRENT_LANG = lang_code
         config = load_config()
         config["language"] = lang_code
         save_config(config)
-        load_translations() # Reload translations from disk to ensure any new keys are available
+        load_translations()
         self.retranslate_ui()
         self.load_templates_to_menu()
         self.load_themes_to_menu()
 
-    def load_image(self):
+    def load_image(self) -> None:
         file_name, _ = QFileDialog.getOpenFileName(self, tr("load_image_button"), "", tr("file_dialog_filter"))
         if file_name:
             try:
@@ -677,7 +669,7 @@ class ImageTextEditorApp(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_could_not_load_image", e))
 
-    def update_background_options(self, *args, **kwargs):
+    def update_background_options(self, *args: Any, **kwargs: Any) -> None:
         is_solid_color = self.background_type_combo.currentData() == "solid"
         self.background_color_label.setVisible(is_solid_color)
         self.background_color_combo.setVisible(is_solid_color)
@@ -687,7 +679,7 @@ class ImageTextEditorApp(QMainWindow):
 
         self.update_preview_live()
 
-    def get_current_params(self):
+    def get_current_params(self) -> Dict[str, Any]:
         return {
             "text": self.text_input.toPlainText(),
             "background_type": self.background_type_combo.currentData(),
@@ -703,7 +695,7 @@ class ImageTextEditorApp(QMainWindow):
             "font_size": self.font_size_spinbox.value() * 5
         }
 
-    def _dispatch_thread(self, action="preview"):
+    def _dispatch_thread(self, action: str = "preview") -> None:
         if self.processing_thread.isRunning():
             self.processing_thread.is_cancelled = True
             self.processing_thread.wait()
@@ -714,7 +706,7 @@ class ImageTextEditorApp(QMainWindow):
         self.processing_thread.setup(params, action)
         self.processing_thread.start()
 
-    def on_image_processed(self, image, qimage, action):
+    def on_image_processed(self, image: Image.Image, qimage: QImage, action: str) -> None:
         if not image or not qimage:
             return
 
@@ -734,11 +726,10 @@ class ImageTextEditorApp(QMainWindow):
             if not self.generated_image.mode == 'RGBA' or self.background_type_combo.currentData() != "transparent":
                 QMessageBox.information(self, tr("dialog_title_success"), tr("msg_image_copied"))
 
-    def update_preview_live(self, *args, **kwargs):
-        """Generates and updates the image preview in real-time using a background thread."""
+    def update_preview_live(self, *args: Any, **kwargs: Any) -> None:
         self._dispatch_thread("preview")
 
-    def generate_and_save_image(self):
+    def generate_and_save_image(self) -> None:
         if not self.text_input.toPlainText():
             QMessageBox.warning(self, tr("dialog_title_warning"), tr("msg_enter_text"))
             return
@@ -747,7 +738,7 @@ class ImageTextEditorApp(QMainWindow):
             return
         self._dispatch_thread("save")
 
-    def copy_image_to_clipboard(self):
+    def copy_image_to_clipboard(self) -> None:
         if not self.text_input.toPlainText():
             QMessageBox.warning(self, tr("dialog_title_warning"), tr("msg_enter_text"))
             return
@@ -756,7 +747,7 @@ class ImageTextEditorApp(QMainWindow):
             return
         self._dispatch_thread("copy")
 
-    def create_image(self, text, background_type, img_dims, bg_color, loaded_image, font_family, font_style, text_color, fit_to_width, text_position, font_size=120, for_preview=False, enable_shadow=False) -> Optional[Image.Image]:
+    def create_image(self, text: str, background_type: str, img_dims: Tuple[int, int], bg_color: str, loaded_image: Optional[Image.Image], font_family: str, font_style: str, text_color: str, fit_to_width: bool, text_position: str, font_size: int = 120, for_preview: bool = False, enable_shadow: bool = False) -> Optional[Image.Image]:
         if not text and not for_preview:
             return None
 
@@ -778,7 +769,7 @@ class ImageTextEditorApp(QMainWindow):
             return self.add_text_to_image(base_image, text, font_family, font_style, text_color, fit_to_width, text_position, font_size, enable_shadow)
         return base_image
 
-    def add_text_to_image(self, image, text, font_family, font_style, text_color, fit_to_width, text_position, font_size, enable_shadow):
+    def add_text_to_image(self, image: Image.Image, text: str, font_family: str, font_style: str, text_color: str, fit_to_width: bool, text_position: str, font_size: int, enable_shadow: bool) -> Image.Image:
         amiri_fallback_path = self.font_paths.get("regular")
 
         font_identifier = None
@@ -830,7 +821,7 @@ class ImageTextEditorApp(QMainWindow):
 
         return image
 
-    def draw_text_fit_to_width(self, draw, text, font_identifier, text_color, image_size, enable_shadow=False):
+    def draw_text_fit_to_width(self, draw: ImageDraw.ImageDraw, text: str, font_identifier: str, text_color: str, image_size: Tuple[int, int], enable_shadow: bool = False) -> None:
         img_width, img_height = image_size
         margin = int(img_width * 0.05)
         target_width = img_width - (2 * margin)
@@ -839,7 +830,6 @@ class ImageTextEditorApp(QMainWindow):
         high_size = 1000
         best_size = low_size
 
-        # Binary Search Optimization for Font Sizing
         while low_size <= high_size:
             mid_size = (low_size + high_size) // 2
             try:
@@ -877,7 +867,7 @@ class ImageTextEditorApp(QMainWindow):
         draw.multiline_text((img_width/2, y), reshaped_text, font=font, fill=text_color,
                             anchor="ma", align="center", stroke_width=2, stroke_fill=stroke_color)
 
-    def wrap_text(self, draw, text, font, max_width):
+    def wrap_text(self, draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, max_width: int) -> str:
         lines = text.split('\n')
         wrapped_lines = []
         for line in lines:
@@ -896,7 +886,7 @@ class ImageTextEditorApp(QMainWindow):
             wrapped_lines.append(current_line)
         return "\n".join(wrapped_lines)
 
-    def draw_text_at_position(self, draw, text, font_identifier, text_color, image_size, position, font_size, enable_shadow=False):
+    def draw_text_at_position(self, draw: ImageDraw.ImageDraw, text: str, font_identifier: str, text_color: str, image_size: Tuple[int, int], position: str, font_size: int, enable_shadow: bool = False) -> None:
         margin = 20
         try:
             font = ImageFont.truetype(font_identifier, font_size)
@@ -947,9 +937,7 @@ class ImageTextEditorApp(QMainWindow):
         draw.multiline_text((x, y), reshaped_text, font=font, fill=text_color,
                             anchor=anchor, align=h_align, stroke_width=2, stroke_fill=stroke_color)
 
-    # old update_preview and pil_to_qimage have been replaced by Thread signal and on_image_processed.
-
-    def save_image(self, image):
+    def save_image(self, image: Image.Image) -> None:
         save_path, selected_filter = QFileDialog.getSaveFileName(self, tr("generate_and_save_button"), "generated_image.png", tr("file_dialog_filter"))
         if save_path:
             try:
@@ -970,7 +958,7 @@ class ImageTextEditorApp(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, tr("dialog_title_error"), tr("msg_could_not_save_image", e))
 
-def main():
+def main() -> None:
     load_translations()
     app = QApplication(sys.argv)
     window = ImageTextEditorApp()
