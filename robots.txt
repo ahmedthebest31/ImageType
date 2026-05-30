@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ahmedthebest31.github.io/ImageType/sitemap.xml
