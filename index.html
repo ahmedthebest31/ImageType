@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" id="html-root" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>ImageType - Accessible Image Text Editor</title>
+    <meta name="description" content="ImageType is a premium, fully accessible desktop application empowering visually impaired users to write text on images effortlessly. Designed by Ahmed Samy Elkhouly.">
+    <meta name="keywords" content="imagetype, blind image editor, accessible text on image, arabic text on image, screen reader compatible, ahmed samy elkhouly">
+    <meta name="author" content="Ahmed Samy Elkhouly">
+    
+    <meta property="og:title" content="ImageType - Accessible Image Text Editor">
+    <meta property="og:description" content="A powerful tool empowering the blind and visually impaired to seamlessly write and format text on images.">
+    <meta property="og:image" content="assets/icon.png">
+    
+    <link rel="icon" type="image/x-icon" href="assets/icon_64.ico">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0F172A', /* Deep slate for premium look */
+                        darkcard: '#1E293B',
+                        accent: '#FBBF24', /* High contrast amber/yellow */
+                        textmain: '#F8FAFC',
+                        textmuted: '#94A3B8'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Focus styles strictly for screen reader and keyboard navigation visibility */
+        *:focus-visible {
+            outline: 4px solid #FBBF24 !important;
+            outline-offset: 4px;
+            border-radius: 4px;
+        }
+        .premium-shadow {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-darkbg text-textmain font-sans min-h-screen flex flex-col antialiased selection:bg-accent selection:text-darkbg">
+
+    <nav class="bg-darkcard/95 backdrop-blur-md p-6 shadow-2xl sticky top-0 z-50 border-b border-gray-700">
+        <div class="container mx-auto flex justify-between items-center max-w-7xl">
+            <div class="flex items-center space-x-4 rtl:space-x-reverse">
+                <img src="assets/icon_64.png" alt="" aria-hidden="true" class="w-12 h-12">
+                <span class="text-2xl font-black tracking-widest text-accent" data-i18n="nav_title">ImageType</span>
+            </div>
+            <button id="lang-toggle" class="bg-transparent border-2 border-accent text-accent px-6 py-2 rounded-lg font-bold hover:bg-accent hover:text-darkbg transition-colors duration-200" aria-label="Toggle Language">
+                العربية
+            </button>
+        </div>
+    </nav>
+
+    <main class="flex-grow">
+        
+        <section class="min-h-[85vh] flex flex-col justify-center items-center text-center px-4 py-24 relative overflow-hidden">
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-accent/5 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
+            <img src="assets/icon.png" alt="ImageType Application Icon" class="w-64 h-64 mx-auto mb-10 premium-shadow rounded-3xl transition-transform duration-300 hover:scale-105">
+            
+            <h1 class="text-5xl md:text-7xl font-extrabold mb-8 text-white tracking-tight" data-i18n="hero_title">
+                The <span class="text-accent">Ultimate</span> Image Editor
+            </h1>
+            
+            <p class="text-2xl md:text-3xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed" data-i18n="hero_subtitle">
+                A professional, cross-platform tool exclusively engineered to empower the blind and visually impaired to seamlessly write, format, and share text on images.
+            </p>
+            
+            <div class="flex flex-col sm:flex-row gap-6 justify-center w-full max-w-2xl">
+                <a href="#downloads" class="bg-accent text-darkbg text-2xl font-bold py-5 px-12 rounded-xl hover:bg-yellow-400 transition-all duration-200 premium-shadow" data-i18n="hero_cta">
+                    <i class="fa-solid fa-download mr-3 rtl:ml-3 rtl:mr-0" aria-hidden="true"></i> Download Now
+                </a>
+                <a href="https://github.com/ahmedthebest31/ImageType" target="_blank" rel="noopener noreferrer" class="bg-darkcard border border-gray-600 text-white text-xl font-bold py-5 px-12 rounded-xl hover:bg-gray-700 transition-all duration-200" data-i18n="hero_github">
+                    <i class="fa-brands fa-github mr-3 rtl:ml-3 rtl:mr-0" aria-hidden="true"></i> View Source
+                </a>
+            </div>
+        </section>
+
+        <div class="flex justify-center my-8" aria-hidden="true">
+            <div class="w-32 h-1.5 bg-accent rounded-full opacity-50"></div>
+        </div>
+
+        <section class="py-32 px-4 container mx-auto max-w-7xl">
+            <h2 class="text-4xl md:text-5xl font-black text-center mb-24 text-white" data-i18n="features_heading">Unmatched Capabilities</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-y-24 gap-x-16">
+                
+                <article class="flex flex-col sm:flex-row items-start gap-8">
+                    <div class="flex-shrink-0 bg-darkcard p-6 rounded-2xl border border-gray-700 premium-shadow">
+                        <i class="fa-solid fa-ear-listen text-6xl text-accent" aria-hidden="true"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-3xl font-bold mb-4 text-white" data-i18n="feat1_title">100% Screen Reader Optimized</h3>
+                        <p class="text-xl text-textmuted leading-relaxed" data-i18n="feat1_desc">Every button, slider, and layout is programmatically exposed using PySide6. Built specifically to work flawlessly with modern screen readers without visual clutter.</p>
+                    </div>
+                </article>
+
+                <article class="flex flex-col sm:flex-row items-start gap-8">
+                    <div class="flex-shrink-0 bg-darkcard p-6 rounded-2xl border border-gray-700 premium-shadow">
+                        <i class="fa-solid fa-language text-6xl text-accent" aria-hidden="true"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-3xl font-bold mb-4 text-white" data-i18n="feat2_title">Flawless Arabic Support</h3>
+                        <p class="text-xl text-textmuted leading-relaxed" data-i18n="feat2_desc">Native RTL rendering combined with a smart font fallback engine. If a system font lacks Arabic glyphs, it instantly falls back to the embedded Amiri font to prevent broken text.</p>
+                    </div>
+                </article>
+
+                <article class="flex flex-col sm:flex-row items-start gap-8">
+                    <div class="flex-shrink-0 bg-darkcard p-6 rounded-2xl border border-gray-700 premium-shadow">
+                        <i class="fa-solid fa-wand-magic-sparkles text-6xl text-accent" aria-hidden="true"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-3xl font-bold mb-4 text-white" data-i18n="feat3_title">Binary Search Auto-Sizing</h3>
+                        <p class="text-xl text-textmuted leading-relaxed" data-i18n="feat3_desc">Just type. Our advanced algorithm uses binary search to instantly calculate and apply the absolute maximum font size that fits your text within the image dimensions.</p>
+                    </div>
+                </article>
+
+                <article class="flex flex-col sm:flex-row items-start gap-8">
+                    <div class="flex-shrink-0 bg-darkcard p-6 rounded-2xl border border-gray-700 premium-shadow">
+                        <i class="fa-solid fa-clipboard-check text-6xl text-accent" aria-hidden="true"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-3xl font-bold mb-4 text-white" data-i18n="feat4_title">Instant Clipboard Export</h3>
+                        <p class="text-xl text-textmuted leading-relaxed" data-i18n="feat4_desc">Skip the file dialogs. Export your finished graphic directly to your system clipboard with a single keystroke, ready to be pasted into social media or chats.</p>
+                    </div>
+                </article>
+
+            </div>
+        </section>
+
+        <div class="flex justify-center my-8" aria-hidden="true">
+            <div class="w-32 h-1.5 bg-accent rounded-full opacity-50"></div>
+        </div>
+
+        <section id="downloads" class="py-32 px-4 container mx-auto max-w-7xl">
+            <div class="text-center mb-20">
+                <h2 class="text-5xl font-black text-white mb-6" data-i18n="download_heading">Get ImageType Now</h2>
+                <p class="text-2xl text-textmuted" data-i18n="download_subheading">Select your operating system to download the latest stable release.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-12 text-center">
+                
+                <article class="bg-darkcard rounded-3xl p-12 border border-gray-700 premium-shadow flex flex-col items-center hover:border-blue-500 transition-colors duration-300">
+                    <h3 class="text-3xl font-bold mb-8 text-white">Windows</h3>
+                    <i class="fa-brands fa-windows text-9xl text-blue-500 mb-12" aria-hidden="true"></i>
+                    
+                    <div class="w-full space-y-6 mt-auto">
+                        <a href="https://github.com/ahmedthebest31/ImageType/releases/latest/download/ImageType_Setup.exe" class="block bg-blue-600 hover:bg-blue-500 text-white text-xl font-bold py-4 px-6 rounded-xl transition-colors duration-200" aria-label="Download Windows Installer Setup">
+                            <i class="fa-solid fa-download mr-3 rtl:ml-3 rtl:mr-0" aria-hidden="true"></i> <span data-i18n="btn_win_installer">User Installer (.exe)</span>
+                        </a>
+                        <a href="https://github.com/ahmedthebest31/ImageType/releases/latest/download/ImageType-win-x64-Portable.zip" class="block bg-gray-700 hover:bg-gray-600 text-white text-xl font-bold py-4 px-6 rounded-xl transition-colors duration-200" aria-label="Download Windows Portable Zip">
+                            <i class="fa-solid fa-box-archive mr-3 rtl:ml-3 rtl:mr-0" aria-hidden="true"></i> <span data-i18n="btn_win_portable">Portable Archive (.zip)</span>
+                        </a>
+                    </div>
+                </article>
+
+                <article class="bg-darkcard rounded-3xl p-12 border border-gray-700 premium-shadow flex flex-col items-center hover:border-gray-300 transition-colors duration-300">
+                    <h3 class="text-3xl font-bold mb-8 text-white">macOS</h3>
+                    <i class="fa-brands fa-apple text-9xl text-gray-200 mb-12" aria-hidden="true"></i>
+                    
+                    <div class="w-full space-y-6 mt-auto">
+                        <a href="https://github.com/ahmedthebest31/ImageType/releases/latest/download/ImageType-mac-x64.zip" class="block bg-gray-200 hover:bg-white text-darkbg text-xl font-bold py-4 px-6 rounded-xl transition-colors duration-200" aria-label="Download macOS App Bundle">
+                            <i class="fa-solid fa-download mr-3 rtl:ml-3 rtl:mr-0" aria-hidden="true"></i> <span data-i18n="btn_mac">App Bundle (.zip)</span>
+                        </a>
+                    </div>
+                </article>
+
+                <article class="bg-darkcard rounded-3xl p-12 border border-gray-700 premium-shadow flex flex-col items-center hover:border-yellow-500 transition-colors duration-300">
+                    <h3 class="text-3xl font-bold mb-8 text-white">Linux</h3>
+                    <i class="fa-brands fa-linux text-9xl text-accent mb-12" aria-hidden="true"></i>
+                    
+                    <div class="w-full space-y-6 mt-auto">
+                        <a href="https://github.com/ahmedthebest31/ImageType/releases/latest/download/ImageType-linux-x64.zip" class="block bg-accent hover:bg-yellow-400 text-darkbg text-xl font-bold py-4 px-6 rounded-xl transition-colors duration-200" aria-label="Download Linux Portable Archive">
+                            <i class="fa-solid fa-download mr-3 rtl:ml-3 rtl:mr-0" aria-hidden="true"></i> <span data-i18n="btn_linux">Portable Archive (.zip)</span>
+                        </a>
+                    </div>
+                </article>
+
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-[#0B1120] border-t border-gray-800 py-12 mt-12">
+        <div class="container mx-auto px-4 text-center">
+            <h2 class="text-2xl font-bold text-white mb-4" data-i18n="footer_designed">Engineered & Developed by Ahmed Samy Elkhouly</h2>
+            <p class="text-lg text-textmuted mb-8" data-i18n="footer_desc">Dedicated to making digital creation accessible for everyone.</p>
+            
+            <a href="https://github.com/ahmedthebest31/ImageType" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center space-x-3 rtl:space-x-reverse text-xl text-accent hover:text-white transition-colors duration-200" aria-label="Visit the open source repository on GitHub">
+                <i class="fa-brands fa-github text-3xl" aria-hidden="true"></i>
+                <span class="font-bold" data-i18n="footer_github">Open Source on GitHub</span>
+            </a>
+        </div>
+    </footer>
+
+    <script>
+        // All text content mapped properly for both languages
+        const translations = {
+            en: {
+                nav_title: "ImageType",
+                hero_title: "The Ultimate Image Editor",
+                hero_subtitle: "A professional, cross-platform tool exclusively engineered to empower the blind and visually impaired to seamlessly write, format, and share text on images.",
+                hero_cta: "Download Now",
+                hero_github: "View Source",
+                features_heading: "Unmatched Capabilities",
+                feat1_title: "100% Screen Reader Optimized",
+                feat1_desc: "Every button, slider, and layout is programmatically exposed using PySide6. Built specifically to work flawlessly with modern screen readers without visual clutter.",
+                feat2_title: "Flawless Arabic Support",
+                feat2_desc: "Native RTL rendering combined with a smart font fallback engine. If a system font lacks Arabic glyphs, it instantly falls back to the embedded Amiri font to prevent broken text.",
+                feat3_title: "Binary Search Auto-Sizing",
+                feat3_desc: "Just type. Our advanced algorithm uses binary search to instantly calculate and apply the absolute maximum font size that fits your text within the image dimensions.",
+                feat4_title: "Instant Clipboard Export",
+                feat4_desc: "Skip the file dialogs. Export your finished graphic directly to your system clipboard with a single keystroke, ready to be pasted into social media or chats.",
+                download_heading: "Get ImageType Now",
+                download_subheading: "Select your operating system to download the latest stable release.",
+                btn_win_installer: "User Installer (.exe)",
+                btn_win_portable: "Portable Archive (.zip)",
+                btn_mac: "App Bundle (.zip)",
+                btn_linux: "Portable Archive (.zip)",
+                footer_designed: "Engineered & Developed by Ahmed Samy Elkhouly",
+                footer_desc: "Dedicated to making digital creation accessible for everyone.",
+                footer_github: "Open Source on GitHub",
+                toggle_text: "العربية"
+            },
+            ar: {
+                nav_title: "إيمدج تايب",
+                hero_title: "المحرر الأقوى للصور",
+                hero_subtitle: "أداة احترافية مخصصة ومصممة هندسياً لتمكين المكفوفين وضعاف البصر من الكتابة على الصور، تنسيق النصوص، ومشاركتها بكل استقلالية وسهولة.",
+                hero_cta: "حمل البرنامج الآن",
+                hero_github: "تصفح الكود المصدري",
+                features_heading: "إمكانيات لا تقارن",
+                feat1_title: "توافق 100% مع قارئات الشاشة",
+                feat1_desc: "تمت برمجة كل زر وأداة لتقرأ برمجياً بشكل سليم. البرنامج مصمم خصيصاً ليتفاعل بسلاسة مع كافة قارئات الشاشة الحديثة بدون أي تشتيت بصري.",
+                feat2_title: "دعم مثالي للغة العربية",
+                feat2_desc: "دعم أصيل للكتابة من اليمين لليسار، مع محرك طوارئ للخطوط يكتشف نقص الحروف ويعود تلقائياً لخط الأميري المدمج ليمنع تقطع النص نهائياً.",
+                feat3_title: "خوارزمية البحث الثنائي",
+                feat3_desc: "فقط اكتب ما تريد؛ خوارزميتنا المعقدة تقوم بحساب وتطبيق الحجم المثالي للخط تلقائياً وفي أجزاء من الثانية ليملأ النص حدود الصورة بالملي.",
+                feat4_title: "تصدير فوري للحافظة",
+                feat4_desc: "تجاوز نوافذ الحفظ المعقدة. قم بتصدير تصميمك النهائي مباشرة إلى حافظة النظام بضغطة واحدة، لتلصقه فوراً في أي محادثة أو تطبيق.",
+                download_heading: "حمل البرنامج الآن",
+                download_subheading: "اختر نظام التشغيل الخاص بك لتحميل أحدث إصدار مستقر.",
+                btn_win_installer: "نسخة التثبيت (Setup.exe)",
+                btn_win_portable: "نسخة محمولة (.zip)",
+                btn_mac: "حزمة التطبيق (.zip)",
+                btn_linux: "نسخة محمولة (.zip)",
+                footer_designed: "تصميم وتطوير المهندس: أحمد سامي الخولي",
+                footer_desc: "نسعى لجعل صناعة المحتوى الرقمي في متناول الجميع.",
+                footer_github: "مفتوح المصدر على GitHub",
+                toggle_text: "English"
+            }
+        };
+
+        const htmlRoot = document.getElementById('html-root');
+        const langToggleBtn = document.getElementById('lang-toggle');
+        
+        let currentLang = localStorage.getItem('imagetype_lang') || 'en';
+        applyLanguage(currentLang);
+
+        langToggleBtn.addEventListener('click', () => {
+            currentLang = currentLang === 'en' ? 'ar' : 'en';
+            localStorage.setItem('imagetype_lang', currentLang);
+            applyLanguage(currentLang);
+        });
+
+        function applyLanguage(lang) {
+            htmlRoot.setAttribute('lang', lang);
+            htmlRoot.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+            
+            langToggleBtn.textContent = translations[lang].toggle_text;
+
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (translations[lang][key]) {
+                    // Update inner HTML to preserve icons or tags inside the text
+                    element.innerHTML = translations[lang][key];
+                }
+            });
+        }
+    </script>
+</body>
+</html>
